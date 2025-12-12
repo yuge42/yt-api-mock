@@ -1,4 +1,6 @@
-# rs-template
+# YouTube API Mock
+
+Development mock for the YouTube Data API.
 
 ## License
 

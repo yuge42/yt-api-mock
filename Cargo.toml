@@ -7,10 +7,10 @@ default-members = ["crates/*"]
 edition = "2024"
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/yuge42/rs-template"
+repository = "https://github.com/yuge42/yt-api-mock"
 readme = "README.md"
-authors = ["Your Name <you@example.com>"]
-description = "Template workspace for Rust projects"
+authors = ["Asayu Yuge <243070221+yuge42@users.noreply.github.com>"]
+description = "Development mock for the YouTube Data API"
 
 [workspace.dependencies]
 # Add shared dependencies here to keep versions aligned across members.
