@@ -18,6 +18,32 @@ If you have already cloned the repository, you can initialize and update the sub
 git submodule update --init --recursive
 ```
 
+### Running the Server
+
+Start the gRPC server using cargo:
+
+```bash
+cargo run -p server
+```
+
+The server listens on `[::1]:50051`.
+
+### Verification
+
+You can verify the server using `grpcurl`.
+
+**List services:**
+
+```bash
+grpcurl -plaintext localhost:50051 list
+```
+
+**Stream chat messages:**
+
+```bash
+grpcurl -plaintext localhost:50051 youtube.api.v3.V3DataLiveChatMessageService/StreamList
+```
+
 ## License
 
 Licensed under either of

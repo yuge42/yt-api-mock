@@ -1,0 +1,10 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tonic = "0.12.3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+live_chat_service = { path = "../crates/live_chat_service" }
+tonic-reflection = "0.12.3"

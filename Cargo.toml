@@ -1,16 +1,16 @@
 [workspace]
-resolver = "3"
-members = ["crates/*"]
-default-members = ["crates/*"]
+resolver = "2"
+members = [
+    "server",
+    "crates/*",
+]
 
 [workspace.package]
-edition = "2024"
-rust-version = "1.85"
+edition = "2021"
+rust-version = "1.75"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/yuge42/yt-api-mock"
 readme = "README.md"
-authors = ["Asayu Yuge <243070221+yuge42@users.noreply.github.com>"]
-description = "Development mock for the YouTube Data API"
-
-[workspace.dependencies]
-# Add shared dependencies here to keep versions aligned across members.
+authors = ["yuge42"]
+description = "YouTube API mock server"
+version = "0.1.0"
