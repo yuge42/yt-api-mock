@@ -1,0 +1,15 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+authors.workspace = true
+description = "Example gRPC server entrypoint"
+
+[dependencies]
+proto-services = { path = "../crates/proto-services" }
+tokio.workspace = true
+tonic.workspace = true
