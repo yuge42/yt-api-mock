@@ -2,6 +2,22 @@
 
 Development mock for the YouTube Data API.
 
+## Usage
+
+### Cloning the repository
+
+To clone the repository including the `proto` submodule:
+
+```bash
+git clone --recursive https://github.com/yuge42/yt-api-mock.git
+```
+
+If you have already cloned the repository, you can initialize and update the submodule with:
+
+```bash
+git submodule update --init --recursive
+```
+
 ## License
 
 Licensed under either of
