@@ -1,6 +1,7 @@
 pub mod proto {
     tonic::include_proto!("youtube.api.v3");
-    pub const FILE_DESCRIPTOR_SET: &[u8] = tonic::include_file_descriptor_set!("live_chat_service_descriptor");
+    pub const FILE_DESCRIPTOR_SET: &[u8] =
+        tonic::include_file_descriptor_set!("live_chat_service_descriptor");
 }
 
 use proto::v3_data_live_chat_message_service_server::{
@@ -27,16 +28,21 @@ impl V3DataLiveChatMessageService for LiveChatService {
         tokio::spawn(async move {
             for i in 0..5 {
                 let snippet = proto::LiveChatMessageSnippet {
-                    r#type: Some(proto::live_chat_message_snippet::type_wrapper::Type::TextMessageEvent as i32),
+                    r#type: Some(
+                        proto::live_chat_message_snippet::type_wrapper::Type::TextMessageEvent
+                            as i32,
+                    ),
                     live_chat_id: Some("live-chat-id-1".to_string()),
                     author_channel_id: Some(format!("channel-id-{}", i)),
                     published_at: Some("2023-01-01T00:00:00Z".to_string()),
                     display_message: Some(format!("Hello world {}", i)),
-                    displayed_content: Some(proto::live_chat_message_snippet::DisplayedContent::TextMessageDetails(
-                        proto::LiveChatTextMessageDetails {
-                            message_text: Some(format!("Hello world {}", i)),
-                        }
-                    )),
+                    displayed_content: Some(
+                        proto::live_chat_message_snippet::DisplayedContent::TextMessageDetails(
+                            proto::LiveChatTextMessageDetails {
+                                message_text: Some(format!("Hello world {}", i)),
+                            },
+                        ),
+                    ),
                     ..Default::default()
                 };
 
@@ -61,7 +67,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
                     items: vec![item],
                     ..Default::default()
                 };
-                if let Err(_) = tx.send(Ok(response)).await {
+                if (tx.send(Ok(response)).await).is_err() {
                     break;
                 }
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -74,5 +80,5 @@ impl V3DataLiveChatMessageService for LiveChatService {
 
 // Public function to create the server
 pub fn create_service() -> V3DataLiveChatMessageServiceServer<LiveChatService> {
-    V3DataLiveChatMessageServiceServer::new(LiveChatService::default())
+    V3DataLiveChatMessageServiceServer::new(LiveChatService)
 }

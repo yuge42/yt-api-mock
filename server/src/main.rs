@@ -1,5 +1,5 @@
-use tonic::transport::Server;
 use live_chat_service::{create_service, proto::FILE_DESCRIPTOR_SET};
+use tonic::transport::Server;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
