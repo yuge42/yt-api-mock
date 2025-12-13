@@ -46,5 +46,8 @@ USER appuser
 # Expose the server port
 EXPOSE 50051
 
+# Set default bind address (can be overridden via environment variable)
+ENV BIND_ADDRESS="[::]:50051"
+
 # Run the server
 CMD ["/app/server"]

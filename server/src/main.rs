@@ -61,7 +61,9 @@ where
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "[::1]:50051".parse()?;
+    let addr = std::env::var("BIND_ADDRESS")
+        .unwrap_or_else(|_| "[::1]:50051".to_string())
+        .parse()?;
     let service = create_service();
     let reflection_service = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(FILE_DESCRIPTOR_SET)
