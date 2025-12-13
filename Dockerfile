@@ -1,7 +1,7 @@
 # Multi-stage build for minimal Dev Container image size
 
-# Stage 1: Build dependencies layer
-FROM rust:1.85-slim AS deps
+# Stage 1: Base image with dependencies
+FROM rust:1.85-slim AS base
 
 # Install essential build tools and protoc
 RUN apt-get update && \
@@ -10,19 +10,16 @@ RUN apt-get update && \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+# Stage 2: Development environment (final stage)
+FROM base AS devcontainer
+
 WORKDIR /workspace
 
-# Copy dependency manifests
-COPY Cargo.toml Cargo.lock ./
-
-# Stage 2: Final development environment
-FROM deps AS devcontainer
-
-# Copy the full source code
+# Copy the source code
 COPY . .
 
-# Verify protoc is available and show Rust version
-RUN protoc --version && rustc --version
+# Verify tools are available
+RUN protoc --version && rustc --version && cargo --version
 
 # Default command
 CMD ["/bin/bash"]
