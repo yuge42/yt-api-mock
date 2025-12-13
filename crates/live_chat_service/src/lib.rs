@@ -67,7 +67,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
                     items: vec![item],
                     ..Default::default()
                 };
-                if let Err(_) = tx.send(Ok(response)).await {
+                if (tx.send(Ok(response)).await).is_err() {
                     break;
                 }
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -80,5 +80,5 @@ impl V3DataLiveChatMessageService for LiveChatService {
 
 // Public function to create the server
 pub fn create_service() -> V3DataLiveChatMessageServiceServer<LiveChatService> {
-    V3DataLiveChatMessageServiceServer::new(LiveChatService::default())
+    V3DataLiveChatMessageServiceServer::new(LiveChatService)
 }
