@@ -16,11 +16,11 @@ WORKDIR /workspace
 COPY . .
 
 # Build the server in release mode with cache mounts for faster rebuilds
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,target=/workspace/target \
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,sharing=locked \
+    --mount=type=cache,target=/workspace/target,sharing=locked \
     cargo build --release -p server && \
-    cp /workspace/target/release/server /tmp/server
+    cp -v /workspace/target/release/server /tmp/server
 
 # Stage 2: Runtime
 FROM debian:bookworm-slim
