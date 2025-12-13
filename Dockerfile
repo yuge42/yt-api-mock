@@ -1,7 +1,7 @@
-# Multi-stage build for minimal Dev Container image size
+# Multi-stage build for minimal server image size
 
-# Stage 1: Base image with dependencies
-FROM rust:1.85-slim AS base
+# Stage 1: Builder
+FROM rust:1.85-slim AS builder
 
 # Install essential build tools and protoc
 RUN apt-get update && \
@@ -10,16 +10,24 @@ RUN apt-get update && \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Stage 2: Development environment (final stage)
-FROM base AS devcontainer
-
 WORKDIR /workspace
 
 # Copy the source code
 COPY . .
 
-# Verify tools are available
-RUN protoc --version && rustc --version && cargo --version
+# Build the server in release mode
+RUN cargo build --release -p server
 
-# Default command
-CMD ["/bin/bash"]
+# Stage 2: Runtime
+FROM debian:bookworm-slim
+
+WORKDIR /app
+
+# Copy the built binary from builder stage
+COPY --from=builder /workspace/target/release/server /app/server
+
+# Expose the server port
+EXPOSE 50051
+
+# Run the server
+CMD ["/app/server"]

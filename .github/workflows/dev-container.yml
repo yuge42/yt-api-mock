@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/devcontainer
+  IMAGE_NAME: ${{ github.repository }}/server
 
 jobs:
   build-and-push:
@@ -41,7 +41,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,format=short
+            type=sha,format=short,prefix=dev-
 
       - name: Build and push multi-arch image
         uses: docker/build-push-action@v5
