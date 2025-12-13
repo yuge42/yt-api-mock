@@ -41,7 +41,7 @@ where
         
         let timestamp = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs();
         
         if let Some(addr) = remote_addr {
@@ -50,10 +50,7 @@ where
             println!("[{}] {} {} from <unknown>", timestamp, method, uri);
         }
 
-        let future = self.inner.call(req);
-        Box::pin(async move {
-            future.await
-        })
+        Box::pin(self.inner.call(req))
     }
 }
 
