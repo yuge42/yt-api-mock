@@ -15,8 +15,12 @@ WORKDIR /workspace
 # Copy the source code
 COPY . .
 
-# Build the server in release mode
-RUN cargo build --release -p server
+# Build the server in release mode with cache mounts for faster rebuilds
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,sharing=locked \
+    --mount=type=cache,target=/workspace/target,sharing=locked \
+    cargo build --release -p server && \
+    cp -v /workspace/target/release/server /tmp/server
 
 # Stage 2: Runtime
 FROM debian:bookworm-slim
@@ -30,7 +34,7 @@ RUN apt-get update && \
 WORKDIR /app
 
 # Copy the built binary from builder stage
-COPY --from=builder /workspace/target/release/server /app/server
+COPY --from=builder /tmp/server /app/server
 
 # Make binary executable and set ownership
 RUN chmod +x /app/server && \
