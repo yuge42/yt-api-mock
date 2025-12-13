@@ -53,6 +53,14 @@ Licensed under either of
 
 at your option.
 
+### Proto Submodule License
+
+The `proto` submodule ([yt-api-proto](https://github.com/yuge42/yt-api-proto)) is licensed under the Apache License, Version 2.0 only. This submodule contains protocol buffer definitions based on Google's YouTube Live Chat API documentation.
+
+**Important:** Binaries distributed from this project will include work derived from the proto definitions in the submodule, which are subject to the Apache License 2.0.
+
+### External Dependencies
+
 Some external dependencies may carry additional copyright notices and license terms.
 When building and distributing binaries, those external library licenses may be included.
 
