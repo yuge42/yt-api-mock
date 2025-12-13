@@ -1,7 +1,7 @@
 use live_chat_service::{create_service, proto::FILE_DESCRIPTOR_SET};
+use std::time::SystemTime;
 use tonic::transport::Server;
 use tower::ServiceBuilder;
-use std::time::SystemTime;
 
 // Middleware to log access requests
 #[derive(Clone)]
@@ -28,9 +28,14 @@ where
 {
     type Response = S::Response;
     type Error = S::Error;
-    type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+    type Future = std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>,
+    >;
 
-    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+    fn poll_ready(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
         self.inner.poll_ready(cx)
     }
 
@@ -38,12 +43,12 @@ where
         let method = req.method().clone();
         let uri = req.uri().clone();
         let remote_addr = req.extensions().get::<std::net::SocketAddr>().copied();
-        
+
         let timestamp = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        
+
         if let Some(addr) = remote_addr {
             println!("[{}] {} {} from {}", timestamp, method, uri, addr);
         } else {
