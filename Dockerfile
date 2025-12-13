@@ -21,10 +21,23 @@ RUN cargo build --release -p server
 # Stage 2: Runtime
 FROM debian:bookworm-slim
 
+# Install CA certificates for potential HTTPS connections
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates && \
+    rm -rf /var/lib/apt/lists/* && \
+    adduser --disabled-password --gecos '' appuser
+
 WORKDIR /app
 
 # Copy the built binary from builder stage
 COPY --from=builder /workspace/target/release/server /app/server
+
+# Make binary executable and set ownership
+RUN chmod +x /app/server && \
+    chown appuser:appuser /app/server
+
+# Run as non-root user
+USER appuser
 
 # Expose the server port
 EXPOSE 50051
