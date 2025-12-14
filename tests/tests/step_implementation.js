@@ -6,6 +6,7 @@ const messages = require('../proto-gen/stream_list_pb');
 const services = require('../proto-gen/stream_list_grpc_pb');
 const { spawn } = require('child_process');
 const assert = require('assert');
+const path = require('path');
 
 let serverProcess = null;
 let client = null;
@@ -18,9 +19,12 @@ step('Start the mock server on port <port>', async function (port) {
     const newEnv = Object.assign({}, process.env);
     newEnv.BIND_ADDRESS = `127.0.0.1:${port}`;
     
+    // Get the project root directory (one level up from tests/)
+    const projectRoot = path.resolve(__dirname, '../..');
+    
     // Start the server using cargo run
     serverProcess = spawn('cargo', ['run', '-p', 'server'], {
-      cwd: '/home/runner/work/yt-api-mock/yt-api-mock',
+      cwd: projectRoot,
       env: newEnv
     });
 
@@ -99,8 +103,7 @@ step('Receive stream of messages', async function () {
       errorOccurred = true;
       // If we've received messages, don't treat this as a failure
       // The cancel operation will trigger an error, which is expected
-      if (receivedMessages.length > 0 || error.code === 1) {
-        // Code 1 is CANCELLED
+      if (receivedMessages.length > 0 || error.code === grpc.status.CANCELLED) {
         resolve();
       } else {
         reject(new Error(`Stream error: ${error.message}`));
