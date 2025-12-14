@@ -61,8 +61,7 @@ where
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let bind_address = std::env::var("BIND_ADDRESS")
-        .unwrap_or_else(|_| "[::1]:50051".to_string());
+    let bind_address = std::env::var("BIND_ADDRESS").unwrap_or_else(|_| "[::1]:50051".to_string());
     let addr = bind_address
         .parse()
         .map_err(|e| format!("Failed to parse BIND_ADDRESS '{}': {}", bind_address, e))?;
