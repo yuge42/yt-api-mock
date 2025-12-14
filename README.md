@@ -26,7 +26,15 @@ Start the gRPC server using cargo:
 cargo run -p server
 ```
 
-The server listens on `[::1]:50051`.
+The server listens on `[::1]:50051` by default.
+
+#### Configuration
+
+You can configure the bind address using the `BIND_ADDRESS` environment variable:
+
+```bash
+BIND_ADDRESS="0.0.0.0:50051" cargo run -p server
+```
 
 ### Verification
 
