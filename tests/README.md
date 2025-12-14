@@ -11,6 +11,7 @@ The tests verify the YouTube Live Chat streaming service using a gRPC client gen
 - Node.js (v14 or later)
 - Gauge test framework
 - Protobuf compiler (protoc) - installed automatically via grpc-tools
+- **The mock server must be running** before executing tests
 
 The JavaScript plugin for Gauge should be installed. If not, run:
 ```bash
@@ -34,8 +35,17 @@ Note: The generated proto files are gitignored and will be regenerated automatic
 
 ## Running Tests
 
-To run all scenario tests:
+### Manual Approach
+
+1. **Start the mock server** in a separate terminal:
 ```bash
+# From the project root
+cargo run -p server
+```
+
+2. Run the tests in another terminal:
+```bash
+cd tests
 npm test
 ```
 
@@ -43,6 +53,19 @@ Or run using gauge directly:
 ```bash
 gauge run specs/
 ```
+
+### Automated Approach
+
+Use the provided automation script from the project root:
+```bash
+./run-tests.sh
+```
+
+This script will automatically:
+- Start the mock server in the background
+- Wait for the server to be ready
+- Run the scenario tests
+- Stop the server after tests complete
 
 ## Test Structure
 
@@ -55,13 +78,14 @@ gauge run specs/
 ## What the Tests Cover
 
 The scenario tests verify:
-1. Starting the mock server
-2. Connecting to the gRPC server
-3. Sending a StreamList request with parameters
-4. Receiving a stream of live chat messages
-5. Verifying the structure and content of responses
-6. Checking that each message has author details
-7. Proper cleanup and server shutdown
+1. Connecting to the gRPC server
+2. Sending a StreamList request with parameters
+3. Receiving a stream of live chat messages
+4. Verifying the structure and content of responses
+5. Checking that each message has author details
+6. Proper cleanup of client connections
+
+**Note**: Server lifecycle management (startup/shutdown) is handled externally and is not part of the test steps.
 
 ## Test Reports
 

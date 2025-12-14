@@ -4,58 +4,11 @@
 const grpc = require('@grpc/grpc-js');
 const messages = require('../proto-gen/stream_list_pb');
 const services = require('../proto-gen/stream_list_grpc_pb');
-const { spawn } = require('child_process');
 const assert = require('assert');
-const path = require('path');
 
-let serverProcess = null;
 let client = null;
 let streamCall = null;
 let receivedMessages = [];
-
-// Start the mock server before tests
-step('Start the mock server on port <port>', async function (port) {
-  return new Promise((resolve, reject) => {
-    const newEnv = Object.assign({}, process.env);
-    newEnv.BIND_ADDRESS = `127.0.0.1:${port}`;
-    
-    // Get the project root directory (one level up from tests/)
-    const projectRoot = path.resolve(__dirname, '../..');
-    
-    // Start the server using cargo run
-    serverProcess = spawn('cargo', ['run', '-p', 'server'], {
-      cwd: projectRoot,
-      env: newEnv
-    });
-
-    let serverStarted = false;
-
-    serverProcess.stdout.on('data', (data) => {
-      const output = data.toString();
-      console.log(`Server output: ${output}`);
-      if (output.includes('Server listening on')) {
-        serverStarted = true;
-        // Give the server a moment to fully initialize
-        setTimeout(resolve, 1000);
-      }
-    });
-
-    serverProcess.stderr.on('data', (data) => {
-      console.error(`Server error: ${data}`);
-    });
-
-    serverProcess.on('error', (error) => {
-      reject(new Error(`Failed to start server: ${error.message}`));
-    });
-
-    // Timeout after 30 seconds
-    setTimeout(() => {
-      if (!serverStarted) {
-        reject(new Error('Server did not start within 30 seconds'));
-      }
-    }, 30000);
-  });
-});
 
 // Connect to the server
 step('Connect to the server at <address>', async function (address) {
@@ -194,28 +147,4 @@ step('Close the connection', async function () {
     client = null;
   }
   console.log('Connection closed');
-});
-
-// Stop the mock server
-step('Stop the mock server', async function () {
-  if (serverProcess) {
-    serverProcess.kill('SIGTERM');
-    
-    return new Promise((resolve) => {
-      serverProcess.on('close', (code) => {
-        console.log(`Server process exited with code ${code}`);
-        serverProcess = null;
-        resolve();
-      });
-
-      // Force kill after 5 seconds if not closed gracefully
-      setTimeout(() => {
-        if (serverProcess) {
-          serverProcess.kill('SIGKILL');
-          serverProcess = null;
-        }
-        resolve();
-      }, 5000);
-    });
-  }
 });
