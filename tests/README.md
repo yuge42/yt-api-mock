@@ -74,19 +74,6 @@ Or run using gauge directly:
 gauge run specs/
 ```
 
-### Automated Approach
-
-Use the provided automation script from the project root:
-```bash
-./run-tests.sh
-```
-
-This script will automatically:
-- Start the mock server in the background
-- Wait for the server to be ready
-- Run the scenario tests
-- Stop the server after tests complete
-
 ## Test Structure
 
 - `specs/` - Contains Gauge specification files (`.spec`)
