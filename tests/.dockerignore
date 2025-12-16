@@ -1,0 +1,28 @@
+# Gauge metadata and logs
+.gauge
+logs
+reports
+
+# Node modules (will be installed in container)
+node_modules
+
+# Generated proto files (will be generated in container)
+proto-gen
+
+# Git files
+.git
+.gitignore
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log

@@ -1,4 +1,4 @@
-/* globals gauge, step */
+/* globals gauge, step, beforeScenario */
 'use strict';
 
 const grpc = require('@grpc/grpc-js');
@@ -9,8 +9,27 @@ const assert = require('assert');
 let client = null;
 let streamCall = null;
 let receivedMessages = [];
+let serverAddress = null;
+
+// Store server address from environment or default
+step('Server address from environment variable <envVar> or default <defaultAddress>', async function (envVar, defaultAddress) {
+  serverAddress = process.env[envVar] || defaultAddress;
+  console.log(`Server address set to: ${serverAddress}`);
+});
 
 // Connect to the server
+step('Connect to the server', async function () {
+  if (!serverAddress) {
+    throw new Error('Server address not set. Please set SERVER_ADDRESS environment variable or use default.');
+  }
+  client = new services.V3DataLiveChatMessageServiceClient(
+    serverAddress,
+    grpc.credentials.createInsecure()
+  );
+  console.log(`Connected to server at ${serverAddress}`);
+});
+
+// Keep the old step for backward compatibility
 step('Connect to the server at <address>', async function (address) {
   client = new services.V3DataLiveChatMessageServiceClient(
     address,

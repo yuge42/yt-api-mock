@@ -6,7 +6,18 @@ This directory contains scenario tests for the YouTube API mock server using [Ga
 
 The tests verify the YouTube Live Chat streaming service using a gRPC client generated from the protocol buffer definitions. This is similar to the [stream_list_demo.py](https://developers.google.com/youtube/v3/live/streaming-live-chat) example provided in Google's official documentation, but implemented as automated scenario tests.
 
-## Prerequisites
+## Quick Start with Docker (Recommended)
+
+The easiest way to run tests without installing dependencies locally:
+
+```bash
+cd tests
+docker compose up --build --abort-on-container-exit
+```
+
+For detailed Docker instructions, see [DOCKER.md](DOCKER.md).
+
+## Prerequisites (for local setup)
 
 - Node.js (v14 or later)
 - Gauge test framework
@@ -18,7 +29,7 @@ The JavaScript plugin for Gauge should be installed. If not, run:
 gauge install js
 ```
 
-## Setup
+## Setup (for local development)
 
 1. Install dependencies:
 ```bash
@@ -34,6 +45,15 @@ npm run proto:generate
 Note: The generated proto files are gitignored and will be regenerated automatically when needed.
 
 ## Running Tests
+
+### Docker Approach (Recommended)
+
+See [DOCKER.md](DOCKER.md) for complete Docker instructions.
+
+Quick command:
+```bash
+docker compose up --build --abort-on-container-exit
+```
 
 ### Manual Approach
 
