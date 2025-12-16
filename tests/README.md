@@ -15,7 +15,12 @@ cd tests
 docker compose up --build --abort-on-container-exit
 ```
 
-For detailed Docker instructions, see [DOCKER.md](DOCKER.md).
+Or using the Makefile:
+
+```bash
+cd tests
+make docker-test
+```
 
 ## Prerequisites (for local setup)
 
@@ -48,12 +53,28 @@ Note: The generated proto files are gitignored and will be regenerated automatic
 
 ### Docker Approach (Recommended)
 
-See [DOCKER.md](DOCKER.md) for complete Docker instructions.
+Run tests using Docker Compose:
 
-Quick command:
 ```bash
-docker compose up --build --abort-on-container-exit
+cd tests
+docker compose up --build --abort-on-container-exit --exit-code-from tests
 ```
+
+Or using the Makefile for convenience:
+
+```bash
+cd tests
+make docker-test
+```
+
+This will:
+- Build the mock server Docker image
+- Build the test environment Docker image with Gauge and Node.js
+- Start the mock server with health checks
+- Wait for the server to be healthy
+- Run the Gauge scenario tests
+- Stop all containers when tests complete
+- Exit with the test container's exit code
 
 ### Manual Approach
 
