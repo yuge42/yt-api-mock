@@ -29,15 +29,6 @@ step('Connect to the server', async function () {
   console.log(`Connected to server at ${serverAddress}`);
 });
 
-// Keep the old step for backward compatibility
-step('Connect to the server at <address>', async function (address) {
-  client = new services.V3DataLiveChatMessageServiceClient(
-    address,
-    grpc.credentials.createInsecure()
-  );
-  console.log(`Connected to server at ${address}`);
-});
-
 // Send StreamList request
 step('Send StreamList request with live chat id <liveChatId> and parts <parts>', async function (liveChatId, parts) {
   const request = new messages.LiveChatMessageListRequest();
