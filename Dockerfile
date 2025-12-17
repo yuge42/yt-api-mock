@@ -45,11 +45,12 @@ RUN chmod +x /app/server && \
 # Run as non-root user
 USER appuser
 
-# Expose the server port
-EXPOSE 50051
+# Expose the gRPC and REST server ports
+EXPOSE 50051 8080
 
-# Set default bind address (can be overridden via environment variable)
-ENV BIND_ADDRESS="[::]:50051"
+# Set default bind addresses (can be overridden via environment variables)
+ENV GRPC_BIND_ADDRESS="[::]:50051"
+ENV REST_BIND_ADDRESS="[::]:8080"
 
 # Run the server
 CMD ["/app/server"]

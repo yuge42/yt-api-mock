@@ -12,7 +12,7 @@ const { URL } = require('url');
 let client = null;
 let streamCall = null;
 let receivedMessages = [];
-let serverAddress = null;
+let grpcServerAddress = null;
 
 // Video service variables (REST API)
 let restServerAddress = null;
@@ -20,10 +20,10 @@ let videoResponse = null;
 let chatIdFromVideo = null;
 let lastHttpStatusCode = null;
 
-// Store server address from environment or default
-step('Server address from environment variable <envVar> or default <defaultAddress>', async function (envVar, defaultAddress) {
-  serverAddress = process.env[envVar] || defaultAddress;
-  console.log(`Server address set to: ${serverAddress}`);
+// Store gRPC server address from environment or default
+step('gRPC server address from environment variable <envVar> or default <defaultAddress>', async function (envVar, defaultAddress) {
+  grpcServerAddress = process.env[envVar] || defaultAddress;
+  console.log(`gRPC server address set to: ${grpcServerAddress}`);
 });
 
 // Store REST server address from environment or default
@@ -34,14 +34,14 @@ step('REST server address from environment variable <envVar> or default <default
 
 // Connect to the server
 step('Connect to the server', async function () {
-  if (!serverAddress) {
-    throw new Error('Server address not set. Please set SERVER_ADDRESS environment variable or use default.');
+  if (!grpcServerAddress) {
+    throw new Error('gRPC server address not set. Please set GRPC_SERVER_ADDRESS environment variable or use default.');
   }
   client = new services.V3DataLiveChatMessageServiceClient(
-    serverAddress,
+    grpcServerAddress,
     grpc.credentials.createInsecure()
   );
-  console.log(`Connected to server at ${serverAddress}`);
+  console.log(`Connected to gRPC server at ${grpcServerAddress}`);
 });
 
 // Send StreamList request
@@ -285,7 +285,7 @@ step('Verify activeLiveChatId can be used with live chat service', async functio
     // Create a live chat client if not already created
     if (!client) {
       client = new services.V3DataLiveChatMessageServiceClient(
-        serverAddress,
+        grpcServerAddress,
         grpc.credentials.createInsecure()
       );
     }

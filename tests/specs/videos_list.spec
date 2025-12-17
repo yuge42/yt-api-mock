@@ -4,7 +4,7 @@ This specification tests the YouTube Videos List REST API endpoint.
 
 **Prerequisites**: The mock server must be running before executing this test.
 
-* Server address from environment variable "SERVER_ADDRESS" or default "localhost:50051"
+* gRPC server address from environment variable "GRPC_SERVER_ADDRESS" or default "localhost:50051"
 * REST server address from environment variable "REST_SERVER_ADDRESS" or default "http://localhost:8080"
 
 ## Test videos.list endpoint to retrieve Live Chat ID

@@ -5,10 +5,12 @@ services:
       dockerfile: Dockerfile
     ports:
       - "50051:50051"
+      - "8080:8080"
     environment:
-      - BIND_ADDRESS=[::]:50051
+      - GRPC_BIND_ADDRESS=[::]:50051
+      - REST_BIND_ADDRESS=[::]:8080
     healthcheck:
-      test: ["CMD", "sh", "-c", "nc -z localhost 50051 || exit 1"]
+      test: ["CMD", "sh", "-c", "nc -z localhost 50051 && nc -z localhost 8080 || exit 1"]
       interval: 2s
       timeout: 5s
       retries: 10
@@ -24,7 +26,8 @@ services:
       server:
         condition: service_healthy
     environment:
-      - SERVER_ADDRESS=server:50051
+      - GRPC_SERVER_ADDRESS=server:50051
+      - REST_SERVER_ADDRESS=http://server:8080
     networks:
       - yt-api-test
     volumes:

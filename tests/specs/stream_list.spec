@@ -4,7 +4,7 @@ This specification tests the YouTube Live Chat streaming service using gRPC.
 
 **Prerequisites**: The mock server must be running before executing this test.
 
-* Server address from environment variable "SERVER_ADDRESS" or default "localhost:50051"
+* gRPC server address from environment variable "GRPC_SERVER_ADDRESS" or default "localhost:50051"
 
 ## Test streaming live chat messages
 
