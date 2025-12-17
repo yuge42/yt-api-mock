@@ -61,17 +61,23 @@ where
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let grpc_bind_address = std::env::var("GRPC_BIND_ADDRESS")
-        .unwrap_or_else(|_| "[::1]:50051".to_string());
-    let rest_bind_address = std::env::var("REST_BIND_ADDRESS")
-        .unwrap_or_else(|_| "[::1]:8080".to_string());
-    
-    let grpc_addr: std::net::SocketAddr = grpc_bind_address
-        .parse()
-        .map_err(|e| format!("Failed to parse GRPC_BIND_ADDRESS '{}': {}", grpc_bind_address, e))?;
-    let rest_addr: std::net::SocketAddr = rest_bind_address
-        .parse()
-        .map_err(|e| format!("Failed to parse REST_BIND_ADDRESS '{}': {}", rest_bind_address, e))?;
+    let grpc_bind_address =
+        std::env::var("GRPC_BIND_ADDRESS").unwrap_or_else(|_| "[::1]:50051".to_string());
+    let rest_bind_address =
+        std::env::var("REST_BIND_ADDRESS").unwrap_or_else(|_| "[::1]:8080".to_string());
+
+    let grpc_addr: std::net::SocketAddr = grpc_bind_address.parse().map_err(|e| {
+        format!(
+            "Failed to parse GRPC_BIND_ADDRESS '{}': {}",
+            grpc_bind_address, e
+        )
+    })?;
+    let rest_addr: std::net::SocketAddr = rest_bind_address.parse().map_err(|e| {
+        format!(
+            "Failed to parse REST_BIND_ADDRESS '{}': {}",
+            rest_bind_address, e
+        )
+    })?;
 
     // Create gRPC service for live chat
     let grpc_service = create_service();

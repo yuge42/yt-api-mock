@@ -1,10 +1,4 @@
-use axum::{
-    extract::Query,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::get,
-    Json, Router,
-};
+use axum::{Json, Router, extract::Query, http::StatusCode, response::IntoResponse, routing::get};
 use serde::{Deserialize, Serialize};
 
 // Constant for the default live chat ID - this should match the one used in live_chat_service
