@@ -14,6 +14,28 @@ pub struct VideosListParams {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ErrorResponse {
+    pub error: ErrorDetail,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ErrorDetail {
+    pub code: u16,
+    pub message: String,
+    pub errors: Vec<ErrorItem>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ErrorItem {
+    pub domain: String,
+    pub reason: String,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VideosListResponse {
     pub kind: String,
     pub etag: String,
@@ -69,17 +91,46 @@ pub struct LiveStreamingDetails {
 }
 
 async fn videos_list(Query(params): Query<VideosListParams>) -> impl IntoResponse {
+    // Validate required parameters
+    // Note: The actual YouTube API behavior for missing required parameters is unconfirmed.
+    // This implementation returns 400 Bad Request to enforce proper API usage.
+    if params.part.is_empty() {
+        let error = ErrorResponse {
+            error: ErrorDetail {
+                code: 400,
+                message: "Required parameter: part".to_string(),
+                errors: vec![ErrorItem {
+                    domain: "global".to_string(),
+                    reason: "required".to_string(),
+                    message: "Required parameter: part".to_string(),
+                }],
+            },
+        };
+        return (StatusCode::BAD_REQUEST, Json(error)).into_response();
+    }
+
+    if params.id.is_empty() {
+        let error = ErrorResponse {
+            error: ErrorDetail {
+                code: 400,
+                message: "Required parameter: id".to_string(),
+                errors: vec![ErrorItem {
+                    domain: "global".to_string(),
+                    reason: "required".to_string(),
+                    message: "Required parameter: id".to_string(),
+                }],
+            },
+        };
+        return (StatusCode::BAD_REQUEST, Json(error)).into_response();
+    }
+
     // Get video IDs from the request
-    let video_id = if params.id.is_empty() {
-        "video-1".to_string()
-    } else {
-        params.id.split(',').next().unwrap_or("video-1").to_string()
-    };
+    let video_id = params.id.split(',').next().unwrap_or("video-1").to_string();
 
     // Parse which parts are requested
     let parts: Vec<&str> = params.part.split(',').map(|s| s.trim()).collect();
-    let include_snippet = parts.is_empty() || parts.contains(&"snippet");
-    let include_live_streaming = parts.is_empty() || parts.contains(&"liveStreamingDetails");
+    let include_snippet = parts.contains(&"snippet");
+    let include_live_streaming = parts.contains(&"liveStreamingDetails");
 
     // Create the video resource
     let video = Video {
@@ -122,7 +173,7 @@ async fn videos_list(Query(params): Query<VideosListParams>) -> impl IntoRespons
         items: vec![video],
     };
 
-    (StatusCode::OK, Json(response))
+    (StatusCode::OK, Json(response)).into_response()
 }
 
 // Create the router for the video API

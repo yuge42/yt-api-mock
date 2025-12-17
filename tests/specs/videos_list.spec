@@ -16,3 +16,17 @@ This specification tests the YouTube Videos List REST API endpoint.
 * Verify video has activeLiveChatId "live-chat-id-1"
 * Verify activeLiveChatId can be used with live chat service
 * Close the connection
+
+## Test videos.list endpoint validates required parameters
+
+Note: The actual YouTube API behavior for missing required parameters is unconfirmed. This test verifies that the mock implementation enforces proper API usage by returning 400 Bad Request.
+
+* Request video via REST without id parameter
+* Verify response status code is "400"
+* Verify error response has error code "400"
+* Verify error message contains "Required parameter: id"
+* Request video via REST without part parameter
+* Verify response status code is "400"
+* Verify error response has error code "400"
+* Verify error message contains "Required parameter: part"
+* Close the connection

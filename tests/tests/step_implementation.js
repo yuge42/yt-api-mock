@@ -18,6 +18,7 @@ let serverAddress = null;
 let restServerAddress = null;
 let videoResponse = null;
 let chatIdFromVideo = null;
+let lastHttpStatusCode = null;
 
 // Store server address from environment or default
 step('Server address from environment variable <envVar> or default <defaultAddress>', async function (envVar, defaultAddress) {
@@ -193,6 +194,7 @@ step('Request video via REST with id <videoId> and parts <parts>', async functio
 
     protocol.get(url.toString(), (res) => {
       let data = '';
+      lastHttpStatusCode = res.statusCode;
 
       res.on('data', (chunk) => {
         data += chunk;
@@ -201,7 +203,10 @@ step('Request video via REST with id <videoId> and parts <parts>', async functio
       res.on('end', () => {
         try {
           videoResponse = JSON.parse(data);
-          console.log(`Received video response with ${videoResponse.items.length} items`);
+          console.log(`Received video response with status ${lastHttpStatusCode}`);
+          if (videoResponse.items) {
+            console.log(`Response has ${videoResponse.items.length} items`);
+          }
           resolve();
         } catch (error) {
           reject(new Error(`Failed to parse response: ${error.message}`));
@@ -325,4 +330,116 @@ step('Verify activeLiveChatId can be used with live chat service', async functio
       }
     }, 3000);
   });
+});
+
+// Request video via REST API without id parameter
+step('Request video via REST without id parameter', async function () {
+  return new Promise((resolve, reject) => {
+    if (!restServerAddress) {
+      reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
+      return;
+    }
+
+    const url = new URL('/youtube/v3/videos', restServerAddress);
+    url.searchParams.append('part', 'liveStreamingDetails');
+
+    const protocol = url.protocol === 'https:' ? https : http;
+    
+    console.log(`Requesting video from: ${url.toString()}`);
+
+    protocol.get(url.toString(), (res) => {
+      let data = '';
+      lastHttpStatusCode = res.statusCode;
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          videoResponse = JSON.parse(data);
+          console.log(`Received error response with status ${lastHttpStatusCode}`);
+          resolve();
+        } catch (error) {
+          reject(new Error(`Failed to parse response: ${error.message}`));
+        }
+      });
+    }).on('error', (error) => {
+      reject(new Error(`HTTP request failed: ${error.message}`));
+    });
+  });
+});
+
+// Request video via REST API without part parameter
+step('Request video via REST without part parameter', async function () {
+  return new Promise((resolve, reject) => {
+    if (!restServerAddress) {
+      reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
+      return;
+    }
+
+    const url = new URL('/youtube/v3/videos', restServerAddress);
+    url.searchParams.append('id', 'test-video-1');
+
+    const protocol = url.protocol === 'https:' ? https : http;
+    
+    console.log(`Requesting video from: ${url.toString()}`);
+
+    protocol.get(url.toString(), (res) => {
+      let data = '';
+      lastHttpStatusCode = res.statusCode;
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          videoResponse = JSON.parse(data);
+          console.log(`Received error response with status ${lastHttpStatusCode}`);
+          resolve();
+        } catch (error) {
+          reject(new Error(`Failed to parse response: ${error.message}`));
+        }
+      });
+    }).on('error', (error) => {
+      reject(new Error(`HTTP request failed: ${error.message}`));
+    });
+  });
+});
+
+// Verify response status code
+step('Verify response status code is <statusCode>', async function (statusCode) {
+  const expectedStatusCode = parseInt(statusCode, 10);
+  assert.strictEqual(
+    lastHttpStatusCode,
+    expectedStatusCode,
+    `Response status code is ${lastHttpStatusCode} but expected ${expectedStatusCode}`
+  );
+  console.log(`Verified response status code: ${expectedStatusCode}`);
+});
+
+// Verify error response has error code
+step('Verify error response has error code <errorCode>', async function (errorCode) {
+  assert.ok(videoResponse, 'No video response received');
+  assert.ok(videoResponse.error, 'Response does not have error object');
+  const expectedCode = parseInt(errorCode, 10);
+  assert.strictEqual(
+    videoResponse.error.code,
+    expectedCode,
+    `Error code is ${videoResponse.error.code} but expected ${expectedCode}`
+  );
+  console.log(`Verified error code: ${expectedCode}`);
+});
+
+// Verify error message contains text
+step('Verify error message contains <text>', async function (text) {
+  assert.ok(videoResponse, 'No video response received');
+  assert.ok(videoResponse.error, 'Response does not have error object');
+  assert.ok(videoResponse.error.message, 'Error object does not have message');
+  assert.ok(
+    videoResponse.error.message.includes(text),
+    `Error message '${videoResponse.error.message}' does not contain '${text}'`
+  );
+  console.log(`Verified error message contains: ${text}`);
 });
