@@ -11,3 +11,4 @@ video_service = { path = "../crates/video_service" }
 tonic-reflection = { workspace = true }
 tower = "0.5"
 http = "1"
+axum = { workspace = true }

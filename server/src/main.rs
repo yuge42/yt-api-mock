@@ -1,7 +1,6 @@
 use live_chat_service::{create_service, proto::FILE_DESCRIPTOR_SET};
-use video_service::{create_service as create_video_service, proto::FILE_DESCRIPTOR_SET as VIDEO_FILE_DESCRIPTOR_SET};
 use std::time::SystemTime;
-use tonic::transport::Server;
+use tonic::transport::Server as GrpcServer;
 use tower::ServiceBuilder;
 
 // Middleware to log access requests
@@ -62,26 +61,46 @@ where
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let bind_address = std::env::var("BIND_ADDRESS").unwrap_or_else(|_| "[::1]:50051".to_string());
-    let addr = bind_address
+    let grpc_bind_address = std::env::var("GRPC_BIND_ADDRESS")
+        .unwrap_or_else(|_| "[::1]:50051".to_string());
+    let rest_bind_address = std::env::var("REST_BIND_ADDRESS")
+        .unwrap_or_else(|_| "[::1]:8080".to_string());
+    
+    let grpc_addr: std::net::SocketAddr = grpc_bind_address
         .parse()
-        .map_err(|e| format!("Failed to parse BIND_ADDRESS '{}': {}", bind_address, e))?;
-    let service = create_service();
-    let video_service = create_video_service();
+        .map_err(|e| format!("Failed to parse GRPC_BIND_ADDRESS '{}': {}", grpc_bind_address, e))?;
+    let rest_addr: std::net::SocketAddr = rest_bind_address
+        .parse()
+        .map_err(|e| format!("Failed to parse REST_BIND_ADDRESS '{}': {}", rest_bind_address, e))?;
+
+    // Create gRPC service for live chat
+    let grpc_service = create_service();
     let reflection_service = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(FILE_DESCRIPTOR_SET)
-        .register_encoded_file_descriptor_set(VIDEO_FILE_DESCRIPTOR_SET)
         .build_v1()?;
 
-    println!("Server listening on {}", addr);
+    // Create REST service for videos API
+    let rest_app = video_service::create_router();
 
-    Server::builder()
-        .layer(ServiceBuilder::new().layer(LogLayer))
-        .add_service(service)
-        .add_service(video_service)
-        .add_service(reflection_service)
-        .serve(addr)
-        .await?;
+    println!("gRPC server (live chat) listening on {}", grpc_addr);
+    println!("REST server (videos API) listening on {}", rest_addr);
+
+    // Run both servers concurrently
+    tokio::select! {
+        result = GrpcServer::builder()
+            .layer(ServiceBuilder::new().layer(LogLayer))
+            .add_service(grpc_service)
+            .add_service(reflection_service)
+            .serve(grpc_addr) => {
+            result?;
+        }
+        result = axum::serve(
+            tokio::net::TcpListener::bind(rest_addr).await?,
+            rest_app
+        ) => {
+            result?;
+        }
+    }
 
     Ok(())
 }

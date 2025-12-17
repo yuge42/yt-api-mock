@@ -4,17 +4,18 @@
 const grpc = require('@grpc/grpc-js');
 const messages = require('../proto-gen/stream_list_pb');
 const services = require('../proto-gen/stream_list_grpc_pb');
-const videoMessages = require('../proto-gen/videos_list_pb');
-const videoServices = require('../proto-gen/videos_list_grpc_pb');
 const assert = require('assert');
+const http = require('http');
+const https = require('https');
+const { URL } = require('url');
 
 let client = null;
 let streamCall = null;
 let receivedMessages = [];
 let serverAddress = null;
 
-// Video service variables
-let videoClient = null;
+// Video service variables (REST API)
+let restServerAddress = null;
 let videoResponse = null;
 let chatIdFromVideo = null;
 
@@ -22,6 +23,12 @@ let chatIdFromVideo = null;
 step('Server address from environment variable <envVar> or default <defaultAddress>', async function (envVar, defaultAddress) {
   serverAddress = process.env[envVar] || defaultAddress;
   console.log(`Server address set to: ${serverAddress}`);
+});
+
+// Store REST server address from environment or default
+step('REST server address from environment variable <envVar> or default <defaultAddress>', async function (envVar, defaultAddress) {
+  restServerAddress = process.env[envVar] || defaultAddress;
+  console.log(`REST server address set to: ${restServerAddress}`);
 });
 
 // Connect to the server
@@ -163,45 +170,44 @@ step('Close the connection', async function () {
     client.close();
     client = null;
   }
-  if (videoClient) {
-    videoClient.close();
-    videoClient = null;
-  }
   console.log('Connection closed');
 });
 
-// Video Service Steps
+// Video Service Steps (REST API)
 
-// Connect to the video service
-step('Connect to the video service', async function () {
-  if (!serverAddress) {
-    throw new Error('Server address not set. Please set SERVER_ADDRESS environment variable or use default.');
-  }
-  videoClient = new videoServices.V3DataVideoServiceClient(
-    serverAddress,
-    grpc.credentials.createInsecure()
-  );
-  console.log(`Connected to video service at ${serverAddress}`);
-});
-
-// Request video with specific parts
-step('Request video with id <videoId> and parts <parts>', async function (videoId, parts) {
+// Request video via REST API
+step('Request video via REST with id <videoId> and parts <parts>', async function (videoId, parts) {
   return new Promise((resolve, reject) => {
-    const request = new videoMessages.VideosListRequest();
-    request.setId(videoId);
-    
-    const partsList = parts.split(',').map(p => p.trim());
-    request.setPartList(partsList);
+    if (!restServerAddress) {
+      restServerAddress = 'http://localhost:8080';
+    }
 
-    videoClient.list(request, (error, response) => {
-      if (error) {
-        console.error(`Error calling videos.list: ${error.message}`);
-        reject(error);
-      } else {
-        videoResponse = response;
-        console.log(`Received video response with ${response.getItemsList().length} items`);
-        resolve();
-      }
+    const url = new URL('/youtube/v3/videos', restServerAddress);
+    url.searchParams.append('id', videoId);
+    url.searchParams.append('part', parts);
+
+    const protocol = restServerAddress.startsWith('https') ? https : http;
+    
+    console.log(`Requesting video from: ${url.toString()}`);
+
+    protocol.get(url.toString(), (res) => {
+      let data = '';
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          videoResponse = JSON.parse(data);
+          console.log(`Received video response with ${videoResponse.items.length} items`);
+          resolve();
+        } catch (error) {
+          reject(new Error(`Failed to parse response: ${error.message}`));
+        }
+      });
+    }).on('error', (error) => {
+      reject(new Error(`HTTP request failed: ${error.message}`));
     });
   });
 });
@@ -209,7 +215,7 @@ step('Request video with id <videoId> and parts <parts>', async function (videoI
 // Verify response kind
 step('Verify response has kind <kind>', async function (kind) {
   assert.ok(videoResponse, 'No video response received');
-  const responseKind = videoResponse.getKind();
+  const responseKind = videoResponse.kind;
   assert.strictEqual(
     responseKind,
     kind,
@@ -221,7 +227,7 @@ step('Verify response has kind <kind>', async function (kind) {
 // Verify number of video items
 step('Verify response has <count> video items', async function (count) {
   assert.ok(videoResponse, 'No video response received');
-  const items = videoResponse.getItemsList();
+  const items = videoResponse.items;
   const expectedCount = parseInt(count, 10);
   assert.strictEqual(
     items.length,
@@ -234,11 +240,11 @@ step('Verify response has <count> video items', async function (count) {
 // Verify video has liveStreamingDetails
 step('Verify video has liveStreamingDetails', async function () {
   assert.ok(videoResponse, 'No video response received');
-  const items = videoResponse.getItemsList();
+  const items = videoResponse.items;
   assert.ok(items.length > 0, 'No video items in response');
   
   const video = items[0];
-  const liveStreamingDetails = video.getLiveStreamingDetails();
+  const liveStreamingDetails = video.liveStreamingDetails;
   assert.ok(
     liveStreamingDetails,
     'Video does not have liveStreamingDetails'
@@ -249,14 +255,14 @@ step('Verify video has liveStreamingDetails', async function () {
 // Verify video has activeLiveChatId
 step('Verify video has activeLiveChatId <expectedChatId>', async function (expectedChatId) {
   assert.ok(videoResponse, 'No video response received');
-  const items = videoResponse.getItemsList();
+  const items = videoResponse.items;
   assert.ok(items.length > 0, 'No video items in response');
   
   const video = items[0];
-  const liveStreamingDetails = video.getLiveStreamingDetails();
+  const liveStreamingDetails = video.liveStreamingDetails;
   assert.ok(liveStreamingDetails, 'Video does not have liveStreamingDetails');
   
-  chatIdFromVideo = liveStreamingDetails.getActiveLiveChatId();
+  chatIdFromVideo = liveStreamingDetails.activeLiveChatId;
   assert.strictEqual(
     chatIdFromVideo,
     expectedChatId,

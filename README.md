@@ -20,59 +20,63 @@ git submodule update --init --recursive
 
 ### Running the Server
 
-Start the gRPC server using cargo:
+Start the server using cargo:
 
 ```bash
 cargo run -p server
 ```
 
-The server listens on `[::1]:50051` by default.
+The server runs two services:
+- **gRPC server** (live chat) listens on `[::1]:50051` by default
+- **REST server** (videos API) listens on `[::1]:8080` by default
 
 #### Configuration
 
-You can configure the bind address using the `BIND_ADDRESS` environment variable:
+You can configure the bind addresses using environment variables:
 
 ```bash
-BIND_ADDRESS="0.0.0.0:50051" cargo run -p server
+GRPC_BIND_ADDRESS="0.0.0.0:50051" REST_BIND_ADDRESS="0.0.0.0:8080" cargo run -p server
 ```
 
 ### Verification
 
-You can verify the server using `grpcurl`.
+You can verify the server using `curl` for REST endpoints and `grpcurl` for gRPC endpoints.
 
-**List services:**
-
-```bash
-grpcurl -plaintext localhost:50051 list
-```
-
-**Get video with Live Chat ID:**
+**Get video with Live Chat ID (REST):**
 
 ```bash
-grpcurl -plaintext -d '{"part": ["liveStreamingDetails"], "id": "test-video-1"}' localhost:50051 youtube.api.v3.V3DataVideoService/List
+curl "http://localhost:8080/youtube/v3/videos?part=liveStreamingDetails&id=test-video-1"
 ```
 
-**Stream chat messages:**
+**Stream chat messages (gRPC):**
 
 ```bash
 grpcurl -plaintext -d '{"live_chat_id": "live-chat-id-1", "part": ["snippet", "authorDetails"]}' localhost:50051 youtube.api.v3.V3DataLiveChatMessageService/StreamList
 ```
 
+**List gRPC services:**
+
+```bash
+grpcurl -plaintext localhost:50051 list
+```
+
 ## Features
 
-### Videos API
+### Videos API (REST)
 
-The server provides a mock implementation of the YouTube Data API `videos.list` endpoint:
+The server provides a mock implementation of the YouTube Data API `videos.list` endpoint via REST:
 - Retrieve video information including live streaming details
 - Get the `activeLiveChatId` for live videos
-- Compatible with the real YouTube API request/response format
+- Compatible with the real YouTube API REST request/response format
+- Access via HTTP GET at `/youtube/v3/videos`
 
-### Live Chat Streaming
+### Live Chat Streaming (gRPC)
 
 Stream live chat messages using the Live Chat ID obtained from the videos.list endpoint:
 - Real-time message streaming via gRPC
 - Includes message snippets and author details
 - Follows YouTube's live chat message format
+- Compatible with gRPC clients
 
 ### Testing
 
