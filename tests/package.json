@@ -3,7 +3,7 @@
   "description": "Scenario tests for YouTube API mock using Gauge and gRPC",
   "scripts": {
     "test": "gauge run specs/",
-    "proto:generate": "mkdir -p proto-gen && grpc_tools_node_protoc --js_out=import_style=commonjs,binary:./proto-gen --grpc_out=grpc_js:./proto-gen --plugin=protoc-gen-grpc=node_modules/grpc-tools/bin/grpc_node_plugin --proto_path=../proto ../proto/stream_list.proto"
+    "proto:generate": "mkdir -p proto-gen && grpc_tools_node_protoc --js_out=import_style=commonjs,binary:./proto-gen --grpc_out=grpc_js:./proto-gen --plugin=protoc-gen-grpc=node_modules/grpc-tools/bin/grpc_node_plugin --proto_path=../proto ../proto/stream_list.proto && grpc_tools_node_protoc --js_out=import_style=commonjs,binary:./proto-gen --grpc_out=grpc_js:./proto-gen --plugin=protoc-gen-grpc=node_modules/grpc-tools/bin/grpc_node_plugin --proto_path=../crates/video_service/proto ../crates/video_service/proto/videos_list.proto"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",
