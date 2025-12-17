@@ -25,10 +25,12 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
 # Stage 2: Runtime
 FROM debian:bookworm-slim
 
-# Install CA certificates for potential HTTPS connections
+# Install CA certificates and netcat for healthchecks
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates && \
-    rm -rf /var/lib/apt/lists/* && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/* && \
     adduser --disabled-password --gecos '' appuser
 
 WORKDIR /app

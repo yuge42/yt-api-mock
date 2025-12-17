@@ -52,6 +52,19 @@ grpcurl -plaintext localhost:50051 list
 grpcurl -plaintext localhost:50051 youtube.api.v3.V3DataLiveChatMessageService/StreamList
 ```
 
+### Testing
+
+Scenario tests are available in the `tests/` directory using Gauge with JavaScript.
+
+See the [tests/README.md](tests/README.md) for details on running the tests.
+
+Quick start:
+```bash
+cd tests
+npm install
+npm test
+```
+
 ## License
 
 Licensed under either of

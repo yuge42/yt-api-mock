@@ -1,0 +1,37 @@
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "50051:50051"
+    environment:
+      - BIND_ADDRESS=[::]:50051
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -z localhost 50051 || exit 1"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - yt-api-test
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      - SERVER_ADDRESS=server:50051
+    networks:
+      - yt-api-test
+    volumes:
+      - ./reports:/tests/reports
+      - ./logs:/tests/logs
+      - ../proto:/tests/../proto:ro
+
+networks:
+  yt-api-test:
+    driver: bridge
