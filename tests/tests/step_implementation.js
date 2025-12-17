@@ -179,14 +179,15 @@ step('Close the connection', async function () {
 step('Request video via REST with id <videoId> and parts <parts>', async function (videoId, parts) {
   return new Promise((resolve, reject) => {
     if (!restServerAddress) {
-      restServerAddress = 'http://localhost:8080';
+      reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
+      return;
     }
 
     const url = new URL('/youtube/v3/videos', restServerAddress);
     url.searchParams.append('id', videoId);
     url.searchParams.append('part', parts);
 
-    const protocol = restServerAddress.startsWith('https') ? https : http;
+    const protocol = url.protocol === 'https:' ? https : http;
     
     console.log(`Requesting video from: ${url.toString()}`);
 
