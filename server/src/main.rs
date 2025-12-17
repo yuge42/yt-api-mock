@@ -1,4 +1,5 @@
 use live_chat_service::{create_service, proto::FILE_DESCRIPTOR_SET};
+use video_service::{create_service as create_video_service, proto::FILE_DESCRIPTOR_SET as VIDEO_FILE_DESCRIPTOR_SET};
 use std::time::SystemTime;
 use tonic::transport::Server;
 use tower::ServiceBuilder;
@@ -66,8 +67,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse()
         .map_err(|e| format!("Failed to parse BIND_ADDRESS '{}': {}", bind_address, e))?;
     let service = create_service();
+    let video_service = create_video_service();
     let reflection_service = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(FILE_DESCRIPTOR_SET)
+        .register_encoded_file_descriptor_set(VIDEO_FILE_DESCRIPTOR_SET)
         .build_v1()?;
 
     println!("Server listening on {}", addr);
@@ -75,6 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Server::builder()
         .layer(ServiceBuilder::new().layer(LogLayer))
         .add_service(service)
+        .add_service(video_service)
         .add_service(reflection_service)
         .serve(addr)
         .await?;
