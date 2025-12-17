@@ -46,11 +46,33 @@ You can verify the server using `grpcurl`.
 grpcurl -plaintext localhost:50051 list
 ```
 
+**Get video with Live Chat ID:**
+
+```bash
+grpcurl -plaintext -d '{"part": ["liveStreamingDetails"], "id": "test-video-1"}' localhost:50051 youtube.api.v3.V3DataVideoService/List
+```
+
 **Stream chat messages:**
 
 ```bash
-grpcurl -plaintext localhost:50051 youtube.api.v3.V3DataLiveChatMessageService/StreamList
+grpcurl -plaintext -d '{"live_chat_id": "live-chat-id-1", "part": ["snippet", "authorDetails"]}' localhost:50051 youtube.api.v3.V3DataLiveChatMessageService/StreamList
 ```
+
+## Features
+
+### Videos API
+
+The server provides a mock implementation of the YouTube Data API `videos.list` endpoint:
+- Retrieve video information including live streaming details
+- Get the `activeLiveChatId` for live videos
+- Compatible with the real YouTube API request/response format
+
+### Live Chat Streaming
+
+Stream live chat messages using the Live Chat ID obtained from the videos.list endpoint:
+- Real-time message streaming via gRPC
+- Includes message snippets and author details
+- Follows YouTube's live chat message format
 
 ### Testing
 
