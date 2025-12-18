@@ -96,6 +96,8 @@ impl V3DataLiveChatMessageService for LiveChatService {
 }
 
 // Public function to create the server
-pub fn create_service(repo: Arc<dyn datastore::Repository>) -> V3DataLiveChatMessageServiceServer<LiveChatService> {
+pub fn create_service(
+    repo: Arc<dyn datastore::Repository>,
+) -> V3DataLiveChatMessageServiceServer<LiveChatService> {
     V3DataLiveChatMessageServiceServer::new(LiveChatService::new(repo))
 }

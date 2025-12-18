@@ -1,4 +1,10 @@
-use axum::{Json, Router, extract::{Query, State}, http::StatusCode, response::IntoResponse, routing::get};
+use axum::{
+    Json, Router,
+    extract::{Query, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::get,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -93,7 +99,7 @@ pub struct LiveStreamingDetails {
 
 async fn videos_list(
     State(repo): State<Arc<dyn datastore::Repository>>,
-    Query(params): Query<VideosListParams>
+    Query(params): Query<VideosListParams>,
 ) -> impl IntoResponse {
     // Validate required parameters
     // Note: The actual YouTube API behavior for missing required parameters is unconfirmed.
@@ -158,14 +164,17 @@ async fn videos_list(
                 None
             },
             live_streaming_details: if include_live_streaming {
-                video_data.live_chat_id.as_ref().map(|live_chat_id| LiveStreamingDetails {
-                    active_live_chat_id: live_chat_id.clone(),
-                    actual_start_time: video_data.actual_start_time.clone(),
-                    actual_end_time: video_data.actual_end_time.clone(),
-                    scheduled_start_time: video_data.scheduled_start_time.clone(),
-                    scheduled_end_time: video_data.scheduled_end_time.clone(),
-                    concurrent_viewers: video_data.concurrent_viewers,
-                })
+                video_data
+                    .live_chat_id
+                    .as_ref()
+                    .map(|live_chat_id| LiveStreamingDetails {
+                        active_live_chat_id: live_chat_id.clone(),
+                        actual_start_time: video_data.actual_start_time.clone(),
+                        actual_end_time: video_data.actual_end_time.clone(),
+                        scheduled_start_time: video_data.scheduled_start_time.clone(),
+                        scheduled_end_time: video_data.scheduled_end_time.clone(),
+                        concurrent_viewers: video_data.concurrent_viewers,
+                    })
             } else {
                 None
             },
