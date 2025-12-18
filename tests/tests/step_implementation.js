@@ -611,7 +611,7 @@ step('Request video via REST with authorization header', async function () {
 step('Send StreamList request without authentication', async function () {
   const client = gauge.dataStore.scenarioStore.get('client');
   const request = new messages.LiveChatMessageListRequest();
-  request.setLiveChatId('test-chat-id');
+  request.setLiveChatId('live-chat-id-1');
   request.setPartList(['snippet', 'authorDetails']);
 
   return new Promise((resolve, reject) => {
