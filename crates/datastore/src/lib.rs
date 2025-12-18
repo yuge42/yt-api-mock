@@ -133,7 +133,7 @@ impl Repository for InMemoryRepository {
             .write()
             .expect("Failed to acquire write lock on chat_messages")
             .entry(message.live_chat_id.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(message);
     }
 }
