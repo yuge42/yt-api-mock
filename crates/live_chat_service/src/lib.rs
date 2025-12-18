@@ -8,12 +8,20 @@ use proto::v3_data_live_chat_message_service_server::{
     V3DataLiveChatMessageService, V3DataLiveChatMessageServiceServer,
 };
 use proto::{LiveChatMessageListRequest, LiveChatMessageListResponse};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status};
 
-#[derive(Debug, Default)]
-pub struct LiveChatService;
+pub struct LiveChatService {
+    repo: Arc<dyn datastore::Repository>,
+}
+
+impl LiveChatService {
+    pub fn new(repo: Arc<dyn datastore::Repository>) -> Self {
+        Self { repo }
+    }
+}
 
 #[tonic::async_trait]
 impl V3DataLiveChatMessageService for LiveChatService {
@@ -21,25 +29,34 @@ impl V3DataLiveChatMessageService for LiveChatService {
 
     async fn stream_list(
         &self,
-        _request: Request<LiveChatMessageListRequest>,
+        request: Request<LiveChatMessageListRequest>,
     ) -> Result<Response<Self::StreamListStream>, Status> {
         let (tx, rx) = mpsc::channel(4);
 
+        // Extract the live_chat_id from the request
+        let live_chat_id = request
+            .into_inner()
+            .live_chat_id
+            .ok_or_else(|| Status::invalid_argument("live_chat_id is required"))?;
+
+        // Get chat messages from the datastore filtered by live_chat_id
+        let messages = self.repo.get_chat_messages(&live_chat_id);
+
         tokio::spawn(async move {
-            for i in 0..5 {
+            for (i, msg) in messages.iter().enumerate() {
                 let snippet = proto::LiveChatMessageSnippet {
                     r#type: Some(
                         proto::live_chat_message_snippet::type_wrapper::Type::TextMessageEvent
                             as i32,
                     ),
-                    live_chat_id: Some("live-chat-id-1".to_string()),
-                    author_channel_id: Some(format!("channel-id-{}", i)),
-                    published_at: Some("2023-01-01T00:00:00Z".to_string()),
-                    display_message: Some(format!("Hello world {}", i)),
+                    live_chat_id: Some(msg.live_chat_id.clone()),
+                    author_channel_id: Some(msg.author_channel_id.clone()),
+                    published_at: Some(msg.published_at.clone()),
+                    display_message: Some(msg.message_text.clone()),
                     displayed_content: Some(
                         proto::live_chat_message_snippet::DisplayedContent::TextMessageDetails(
                             proto::LiveChatTextMessageDetails {
-                                message_text: Some(format!("Hello world {}", i)),
+                                message_text: Some(msg.message_text.clone()),
                             },
                         ),
                     ),
@@ -47,16 +64,16 @@ impl V3DataLiveChatMessageService for LiveChatService {
                 };
 
                 let author_details = proto::LiveChatMessageAuthorDetails {
-                    display_name: Some(format!("User {}", i)),
-                    channel_id: Some(format!("channel-id-{}", i)),
-                    is_verified: Some(true),
+                    display_name: Some(msg.author_display_name.clone()),
+                    channel_id: Some(msg.author_channel_id.clone()),
+                    is_verified: Some(msg.is_verified),
                     ..Default::default()
                 };
 
                 let item = proto::LiveChatMessage {
                     kind: Some("youtube#liveChatMessage".to_string()),
                     etag: Some(format!("etag-{}", i)),
-                    id: Some(format!("msg-id-{}", i)),
+                    id: Some(msg.id.clone()),
                     snippet: Some(snippet),
                     author_details: Some(author_details),
                 };
@@ -79,6 +96,6 @@ impl V3DataLiveChatMessageService for LiveChatService {
 }
 
 // Public function to create the server
-pub fn create_service() -> V3DataLiveChatMessageServiceServer<LiveChatService> {
-    V3DataLiveChatMessageServiceServer::new(LiveChatService)
+pub fn create_service(repo: Arc<dyn datastore::Repository>) -> V3DataLiveChatMessageServiceServer<LiveChatService> {
+    V3DataLiveChatMessageServiceServer::new(LiveChatService::new(repo))
 }
