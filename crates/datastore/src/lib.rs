@@ -2,9 +2,6 @@ use domain::{LiveChatMessage, Video};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-// Re-export domain models for convenience
-pub use domain::{LiveChatMessage as LiveChatMessageModel, Video as VideoModel};
-
 /// Repository trait for data access abstraction
 /// This allows switching between different storage backends (in-memory, filesystem, database)
 pub trait Repository: Send + Sync {
