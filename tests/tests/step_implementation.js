@@ -9,57 +9,53 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 
-let client = null;
-let streamCall = null;
-let receivedMessages = [];
-let grpcServerAddress = null;
-
-// Video service variables (REST API)
-let restServerAddress = null;
-let videoResponse = null;
-let chatIdFromVideo = null;
-let lastHttpStatusCode = null;
-
 // Store gRPC server address from environment or default
 step('gRPC server address from environment variable <envVar> or default <defaultAddress>', async function (envVar, defaultAddress) {
-  grpcServerAddress = process.env[envVar] || defaultAddress;
-  console.log(`gRPC server address set to: ${grpcServerAddress}`);
+  const address = process.env[envVar] || defaultAddress;
+  gauge.dataStore.specStore.put('grpcServerAddress', address);
+  console.log(`gRPC server address set to: ${address}`);
 });
 
 // Store REST server address from environment or default
 step('REST server address from environment variable <envVar> or default <defaultAddress>', async function (envVar, defaultAddress) {
-  restServerAddress = process.env[envVar] || defaultAddress;
-  console.log(`REST server address set to: ${restServerAddress}`);
+  const address = process.env[envVar] || defaultAddress;
+  gauge.dataStore.specStore.put('restServerAddress', address);
+  console.log(`REST server address set to: ${address}`);
 });
 
 // Connect to the server
 step('Connect to the server', async function () {
+  const grpcServerAddress = gauge.dataStore.specStore.get('grpcServerAddress');
   if (!grpcServerAddress) {
     throw new Error('gRPC server address not set. Please set GRPC_SERVER_ADDRESS environment variable or use default.');
   }
-  client = new services.V3DataLiveChatMessageServiceClient(
+  const client = new services.V3DataLiveChatMessageServiceClient(
     grpcServerAddress,
     grpc.credentials.createInsecure()
   );
+  gauge.dataStore.scenarioStore.put('client', client);
   console.log(`Connected to gRPC server at ${grpcServerAddress}`);
 });
 
 // Send StreamList request
 step('Send StreamList request with live chat id <liveChatId> and parts <parts>', async function (liveChatId, parts) {
+  const client = gauge.dataStore.scenarioStore.get('client');
   const request = new messages.LiveChatMessageListRequest();
   request.setLiveChatId(liveChatId);
   
   const partsList = parts.split(',').map(p => p.trim());
   request.setPartList(partsList);
 
-  streamCall = client.streamList(request);
+  const streamCall = client.streamList(request);
+  gauge.dataStore.scenarioStore.put('streamCall', streamCall);
   console.log(`Sent StreamList request for chat ID: ${liveChatId} with parts: ${partsList.join(', ')}`);
 });
 
 // Receive stream of messages
 step('Receive stream of messages', async function () {
+  const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
   return new Promise((resolve, reject) => {
-    receivedMessages = [];
+    const receivedMessages = [];
     let streamEnded = false;
     let errorOccurred = false;
 
@@ -72,6 +68,7 @@ step('Receive stream of messages', async function () {
       console.log('Stream ended normally');
       streamEnded = true;
       if (!errorOccurred) {
+        gauge.dataStore.scenarioStore.put('receivedMessages', receivedMessages);
         resolve();
       }
     });
@@ -82,6 +79,7 @@ step('Receive stream of messages', async function () {
       // If we've received messages, don't treat this as a failure
       // The cancel operation will trigger an error, which is expected
       if (receivedMessages.length > 0 || error.code === grpc.status.CANCELLED) {
+        gauge.dataStore.scenarioStore.put('receivedMessages', receivedMessages);
         resolve();
       } else {
         reject(new Error(`Stream error: ${error.message}`));
@@ -96,6 +94,7 @@ step('Receive stream of messages', async function () {
       // Give a small delay for the cancel to propagate
       setTimeout(() => {
         if (!streamEnded && receivedMessages.length > 0) {
+          gauge.dataStore.scenarioStore.put('receivedMessages', receivedMessages);
           resolve();
         }
       }, 100);
@@ -105,6 +104,7 @@ step('Receive stream of messages', async function () {
 
 // Verify number of messages received
 step('Verify received <count> messages', async function (count) {
+  const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
   const expectedCount = parseInt(count, 10);
   assert.strictEqual(
     receivedMessages.length,
@@ -116,6 +116,7 @@ step('Verify received <count> messages', async function (count) {
 
 // Verify message kind
 step('Verify each message has kind <kind>', async function (kind) {
+  const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
   receivedMessages.forEach((message, index) => {
     const messageKind = message.getKind();
     assert.strictEqual(
@@ -142,6 +143,7 @@ step('Verify each message has kind <kind>', async function (kind) {
 
 // Verify author details
 step('Verify each message has author details', async function () {
+  const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
   receivedMessages.forEach((message, index) => {
     const items = message.getItemsList();
     assert.ok(items.length > 0, `Message ${index} has no items`);
@@ -163,13 +165,16 @@ step('Verify each message has author details', async function () {
 
 // Close the connection
 step('Close the connection', async function () {
+  const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
+  const client = gauge.dataStore.scenarioStore.get('client');
+  
   if (streamCall) {
     streamCall.cancel();
-    streamCall = null;
+    gauge.dataStore.scenarioStore.put('streamCall', null);
   }
   if (client) {
     client.close();
-    client = null;
+    gauge.dataStore.scenarioStore.put('client', null);
   }
   console.log('Connection closed');
 });
@@ -178,6 +183,7 @@ step('Close the connection', async function () {
 
 // Request video via REST API
 step('Request video via REST with id <videoId> and parts <parts>', async function (videoId, parts) {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
   return new Promise((resolve, reject) => {
     if (!restServerAddress) {
       reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
@@ -194,7 +200,8 @@ step('Request video via REST with id <videoId> and parts <parts>', async functio
 
     protocol.get(url.toString(), (res) => {
       let data = '';
-      lastHttpStatusCode = res.statusCode;
+      const statusCode = res.statusCode;
+      gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
 
       res.on('data', (chunk) => {
         data += chunk;
@@ -202,8 +209,9 @@ step('Request video via REST with id <videoId> and parts <parts>', async functio
 
       res.on('end', () => {
         try {
-          videoResponse = JSON.parse(data);
-          console.log(`Received video response with status ${lastHttpStatusCode}`);
+          const videoResponse = JSON.parse(data);
+          gauge.dataStore.scenarioStore.put('videoResponse', videoResponse);
+          console.log(`Received video response with status ${statusCode}`);
           if (videoResponse.items) {
             console.log(`Response has ${videoResponse.items.length} items`);
           }
@@ -220,6 +228,7 @@ step('Request video via REST with id <videoId> and parts <parts>', async functio
 
 // Verify response kind
 step('Verify response has kind <kind>', async function (kind) {
+  const videoResponse = gauge.dataStore.scenarioStore.get('videoResponse');
   assert.ok(videoResponse, 'No video response received');
   const responseKind = videoResponse.kind;
   assert.strictEqual(
@@ -232,6 +241,7 @@ step('Verify response has kind <kind>', async function (kind) {
 
 // Verify number of video items
 step('Verify response has <count> video items', async function (count) {
+  const videoResponse = gauge.dataStore.scenarioStore.get('videoResponse');
   assert.ok(videoResponse, 'No video response received');
   const items = videoResponse.items;
   const expectedCount = parseInt(count, 10);
@@ -245,6 +255,7 @@ step('Verify response has <count> video items', async function (count) {
 
 // Verify video has liveStreamingDetails
 step('Verify video has liveStreamingDetails', async function () {
+  const videoResponse = gauge.dataStore.scenarioStore.get('videoResponse');
   assert.ok(videoResponse, 'No video response received');
   const items = videoResponse.items;
   assert.ok(items.length > 0, 'No video items in response');
@@ -260,6 +271,7 @@ step('Verify video has liveStreamingDetails', async function () {
 
 // Verify video has activeLiveChatId
 step('Verify video has activeLiveChatId <expectedChatId>', async function (expectedChatId) {
+  const videoResponse = gauge.dataStore.scenarioStore.get('videoResponse');
   assert.ok(videoResponse, 'No video response received');
   const items = videoResponse.items;
   assert.ok(items.length > 0, 'No video items in response');
@@ -268,7 +280,8 @@ step('Verify video has activeLiveChatId <expectedChatId>', async function (expec
   const liveStreamingDetails = video.liveStreamingDetails;
   assert.ok(liveStreamingDetails, 'Video does not have liveStreamingDetails');
   
-  chatIdFromVideo = liveStreamingDetails.activeLiveChatId;
+  const chatIdFromVideo = liveStreamingDetails.activeLiveChatId;
+  gauge.dataStore.scenarioStore.put('chatIdFromVideo', chatIdFromVideo);
   assert.strictEqual(
     chatIdFromVideo,
     expectedChatId,
@@ -279,15 +292,20 @@ step('Verify video has activeLiveChatId <expectedChatId>', async function (expec
 
 // Verify chat ID can be used with live chat service
 step('Verify activeLiveChatId can be used with live chat service', async function () {
+  const chatIdFromVideo = gauge.dataStore.scenarioStore.get('chatIdFromVideo');
+  const grpcServerAddress = gauge.dataStore.specStore.get('grpcServerAddress');
+  
   assert.ok(chatIdFromVideo, 'No chat ID obtained from video');
   
   return new Promise((resolve, reject) => {
     // Create a live chat client if not already created
+    let client = gauge.dataStore.scenarioStore.get('client');
     if (!client) {
       client = new services.V3DataLiveChatMessageServiceClient(
         grpcServerAddress,
         grpc.credentials.createInsecure()
       );
+      gauge.dataStore.scenarioStore.put('client', client);
     }
 
     const request = new messages.LiveChatMessageListRequest();
@@ -334,6 +352,7 @@ step('Verify activeLiveChatId can be used with live chat service', async functio
 
 // Request video via REST API without id parameter
 step('Request video via REST without id parameter', async function () {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
   return new Promise((resolve, reject) => {
     if (!restServerAddress) {
       reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
@@ -349,7 +368,8 @@ step('Request video via REST without id parameter', async function () {
 
     protocol.get(url.toString(), (res) => {
       let data = '';
-      lastHttpStatusCode = res.statusCode;
+      const statusCode = res.statusCode;
+      gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
 
       res.on('data', (chunk) => {
         data += chunk;
@@ -357,8 +377,9 @@ step('Request video via REST without id parameter', async function () {
 
       res.on('end', () => {
         try {
-          videoResponse = JSON.parse(data);
-          console.log(`Received error response with status ${lastHttpStatusCode}`);
+          const videoResponse = JSON.parse(data);
+          gauge.dataStore.scenarioStore.put('videoResponse', videoResponse);
+          console.log(`Received error response with status ${statusCode}`);
           resolve();
         } catch (error) {
           reject(new Error(`Failed to parse response: ${error.message}`));
@@ -372,6 +393,7 @@ step('Request video via REST without id parameter', async function () {
 
 // Request video via REST API without part parameter
 step('Request video via REST without part parameter', async function () {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
   return new Promise((resolve, reject) => {
     if (!restServerAddress) {
       reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
@@ -387,7 +409,8 @@ step('Request video via REST without part parameter', async function () {
 
     protocol.get(url.toString(), (res) => {
       let data = '';
-      lastHttpStatusCode = res.statusCode;
+      const statusCode = res.statusCode;
+      gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
 
       res.on('data', (chunk) => {
         data += chunk;
@@ -395,8 +418,9 @@ step('Request video via REST without part parameter', async function () {
 
       res.on('end', () => {
         try {
-          videoResponse = JSON.parse(data);
-          console.log(`Received error response with status ${lastHttpStatusCode}`);
+          const videoResponse = JSON.parse(data);
+          gauge.dataStore.scenarioStore.put('videoResponse', videoResponse);
+          console.log(`Received error response with status ${statusCode}`);
           resolve();
         } catch (error) {
           reject(new Error(`Failed to parse response: ${error.message}`));
@@ -410,6 +434,7 @@ step('Request video via REST without part parameter', async function () {
 
 // Verify response status code
 step('Verify response status code is <statusCode>', async function (statusCode) {
+  const lastHttpStatusCode = gauge.dataStore.scenarioStore.get('lastHttpStatusCode');
   const expectedStatusCode = parseInt(statusCode, 10);
   assert.strictEqual(
     lastHttpStatusCode,
@@ -421,6 +446,7 @@ step('Verify response status code is <statusCode>', async function (statusCode) 
 
 // Verify error response has error code
 step('Verify error response has error code <errorCode>', async function (errorCode) {
+  const videoResponse = gauge.dataStore.scenarioStore.get('videoResponse');
   assert.ok(videoResponse, 'No video response received');
   assert.ok(videoResponse.error, 'Response does not have error object');
   const expectedCode = parseInt(errorCode, 10);
@@ -434,6 +460,7 @@ step('Verify error response has error code <errorCode>', async function (errorCo
 
 // Verify error message contains text
 step('Verify error message contains <text>', async function (text) {
+  const videoResponse = gauge.dataStore.scenarioStore.get('videoResponse');
   assert.ok(videoResponse, 'No video response received');
   assert.ok(videoResponse.error, 'Response does not have error object');
   assert.ok(videoResponse.error.message, 'Error object does not have message');
