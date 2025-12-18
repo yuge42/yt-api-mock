@@ -1,5 +1,12 @@
-use axum::{Json, Router, extract::Query, http::StatusCode, response::IntoResponse, routing::get};
+use axum::{
+    Json, Router,
+    extract::{Query, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::get,
+};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 // Constant for the default live chat ID - this should match the one used in live_chat_service
 pub const DEFAULT_LIVE_CHAT_ID: &str = "live-chat-id-1";
@@ -90,7 +97,10 @@ pub struct LiveStreamingDetails {
     pub concurrent_viewers: Option<u64>,
 }
 
-async fn videos_list(Query(params): Query<VideosListParams>) -> impl IntoResponse {
+async fn videos_list(
+    State(repo): State<Arc<dyn datastore::Repository>>,
+    Query(params): Query<VideosListParams>,
+) -> impl IntoResponse {
     // Validate required parameters
     // Note: The actual YouTube API behavior for missing required parameters is unconfirmed.
     // This implementation returns 400 Bad Request to enforce proper API usage.
@@ -127,56 +137,70 @@ async fn videos_list(Query(params): Query<VideosListParams>) -> impl IntoRespons
     // Get video IDs from the request
     let video_id = params.id.split(',').next().unwrap_or("video-1").to_string();
 
-    // Parse which parts are requested
-    let parts: Vec<&str> = params.part.split(',').map(|s| s.trim()).collect();
-    let include_snippet = parts.contains(&"snippet");
-    let include_live_streaming = parts.contains(&"liveStreamingDetails");
+    // Fetch video from datastore
+    let video_data = repo.get_video(&video_id);
 
-    // Create the video resource
-    let video = Video {
-        kind: "youtube#video".to_string(),
-        etag: "etag-video-1".to_string(),
-        id: video_id,
-        snippet: if include_snippet {
-            Some(VideoSnippet {
-                published_at: "2023-01-01T00:00:00Z".to_string(),
-                channel_id: "channel-1".to_string(),
-                title: "Mock Live Stream Video".to_string(),
-                description: "This is a mock video for testing the YouTube Data API".to_string(),
-                channel_title: "Mock Channel".to_string(),
-            })
-        } else {
-            None
-        },
-        live_streaming_details: if include_live_streaming {
-            Some(LiveStreamingDetails {
-                active_live_chat_id: DEFAULT_LIVE_CHAT_ID.to_string(),
-                actual_start_time: Some("2023-01-01T00:00:00Z".to_string()),
-                actual_end_time: None,
-                scheduled_start_time: Some("2023-01-01T00:00:00Z".to_string()),
-                scheduled_end_time: None,
-                concurrent_viewers: Some(42),
-            })
-        } else {
-            None
-        },
+    // If video not found, return empty items array
+    let items = if let Some(video_data) = video_data {
+        // Parse which parts are requested
+        let parts: Vec<&str> = params.part.split(',').map(|s| s.trim()).collect();
+        let include_snippet = parts.contains(&"snippet");
+        let include_live_streaming = parts.contains(&"liveStreamingDetails");
+
+        // Create the video resource
+        let video = Video {
+            kind: "youtube#video".to_string(),
+            etag: "etag-video-1".to_string(),
+            id: video_data.id.clone(),
+            snippet: if include_snippet {
+                Some(VideoSnippet {
+                    published_at: video_data.published_at.clone(),
+                    channel_id: video_data.channel_id.clone(),
+                    title: video_data.title.clone(),
+                    description: video_data.description.clone(),
+                    channel_title: video_data.channel_title.clone(),
+                })
+            } else {
+                None
+            },
+            live_streaming_details: if include_live_streaming {
+                video_data
+                    .live_chat_id
+                    .as_ref()
+                    .map(|live_chat_id| LiveStreamingDetails {
+                        active_live_chat_id: live_chat_id.clone(),
+                        actual_start_time: video_data.actual_start_time.clone(),
+                        actual_end_time: video_data.actual_end_time.clone(),
+                        scheduled_start_time: video_data.scheduled_start_time.clone(),
+                        scheduled_end_time: video_data.scheduled_end_time.clone(),
+                        concurrent_viewers: video_data.concurrent_viewers,
+                    })
+            } else {
+                None
+            },
+        };
+        vec![video]
+    } else {
+        vec![]
     };
 
     let response = VideosListResponse {
         kind: "youtube#videoListResponse".to_string(),
         etag: "etag-list-1".to_string(),
         page_info: PageInfo {
-            total_results: 1,
-            results_per_page: 1,
+            total_results: items.len() as i32,
+            results_per_page: items.len() as i32,
         },
         next_page_token: None,
-        items: vec![video],
+        items,
     };
 
     (StatusCode::OK, Json(response)).into_response()
 }
 
 // Create the router for the video API
-pub fn create_router() -> Router {
-    Router::new().route("/youtube/v3/videos", get(videos_list))
+pub fn create_router(repo: Arc<dyn datastore::Repository>) -> Router {
+    Router::new()
+        .route("/youtube/v3/videos", get(videos_list))
+        .with_state(repo)
 }

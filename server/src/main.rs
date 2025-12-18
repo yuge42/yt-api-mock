@@ -1,4 +1,5 @@
 use live_chat_service::{create_service, proto::FILE_DESCRIPTOR_SET};
+use std::sync::Arc;
 use std::time::SystemTime;
 use tonic::transport::Server as GrpcServer;
 use tower::ServiceBuilder;
@@ -79,14 +80,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
     })?;
 
-    // Create gRPC service for live chat
-    let grpc_service = create_service();
+    // Create the centralized datastore
+    let repo: Arc<dyn datastore::Repository> = Arc::new(datastore::InMemoryRepository::new());
+
+    // Create gRPC service for live chat with shared datastore
+    let grpc_service = create_service(Arc::clone(&repo));
     let reflection_service = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(FILE_DESCRIPTOR_SET)
         .build_v1()?;
 
-    // Create REST service for videos API
-    let rest_app = video_service::create_router();
+    // Create REST service for videos API with shared datastore
+    let rest_app = video_service::create_router(Arc::clone(&repo));
 
     println!("gRPC server (live chat) listening on {}", grpc_addr);
     println!("REST server (videos API) listening on {}", rest_addr);
