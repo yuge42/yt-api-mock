@@ -7,6 +7,8 @@ edition = "2024"
 tonic = { workspace = true }
 tokio = { workspace = true }
 live_chat_service = { path = "../crates/live_chat_service" }
+video_service = { path = "../crates/video_service" }
 tonic-reflection = { workspace = true }
 tower = "0.5"
 http = "1"
+axum = { workspace = true }
