@@ -31,6 +31,28 @@ impl V3DataLiveChatMessageService for LiveChatService {
         &self,
         request: Request<LiveChatMessageListRequest>,
     ) -> Result<Response<Self::StreamListStream>, Status> {
+        // Check if auth check is enabled via environment variable
+        let require_auth = std::env::var("REQUIRE_AUTH")
+            .unwrap_or_else(|_| "false".to_string())
+            .parse::<bool>()
+            .unwrap_or(false);
+
+        if require_auth {
+            // Check for authentication in metadata
+            // Look for either:
+            // 1. 'x-goog-api-key' metadata (API key)
+            // 2. 'authorization' metadata (OAuth 2.0)
+            let metadata = request.metadata();
+            let has_api_key = metadata.get("x-goog-api-key").is_some();
+            let has_auth = metadata.get("authorization").is_some();
+
+            if !has_api_key && !has_auth {
+                return Err(Status::unauthenticated(
+                    "Request is missing required authentication credential. Expected OAuth 2 access token or API key."
+                ));
+            }
+        }
+
         let (tx, rx) = mpsc::channel(4);
 
         // Extract the live_chat_id from the request
