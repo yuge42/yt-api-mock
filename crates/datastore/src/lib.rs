@@ -100,6 +100,20 @@ impl InMemoryRepository {
             };
             self.add_chat_message(message);
         }
+
+        // Add dummy chat messages for test-chat-id (used in tests)
+        for i in 0..5 {
+            let message = LiveChatMessage {
+                id: format!("test-msg-id-{}", i),
+                live_chat_id: "test-chat-id".to_string(),
+                author_channel_id: format!("test-channel-id-{}", i),
+                author_display_name: format!("Test User {}", i),
+                message_text: format!("Test message {}", i),
+                published_at: "2023-01-01T00:00:00Z".to_string(),
+                is_verified: true,
+            };
+            self.add_chat_message(message);
+        }
     }
 }
 
