@@ -470,3 +470,299 @@ step('Verify error message contains <text>', async function (text) {
   );
   console.log(`Verified error message contains: ${text}`);
 });
+
+// Authorization Tests for REST API
+
+// Request video without authentication
+step('Request video via REST without authentication', async function () {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  return new Promise((resolve, reject) => {
+    if (!restServerAddress) {
+      reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
+      return;
+    }
+
+    const url = new URL('/youtube/v3/videos', restServerAddress);
+    url.searchParams.append('id', 'test-video-1');
+    url.searchParams.append('part', 'liveStreamingDetails');
+
+    const protocol = url.protocol === 'https:' ? https : http;
+    
+    console.log(`Requesting video without auth from: ${url.toString()}`);
+
+    protocol.get(url.toString(), (res) => {
+      let data = '';
+      const statusCode = res.statusCode;
+      gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          const videoResponse = JSON.parse(data);
+          gauge.dataStore.scenarioStore.put('videoResponse', videoResponse);
+          console.log(`Received response with status ${statusCode}`);
+          resolve();
+        } catch (error) {
+          reject(new Error(`Failed to parse response: ${error.message}`));
+        }
+      });
+    }).on('error', (error) => {
+      reject(new Error(`HTTP request failed: ${error.message}`));
+    });
+  });
+});
+
+// Request video with API key parameter
+step('Request video via REST with API key parameter', async function () {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  return new Promise((resolve, reject) => {
+    if (!restServerAddress) {
+      reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
+      return;
+    }
+
+    const url = new URL('/youtube/v3/videos', restServerAddress);
+    url.searchParams.append('id', 'test-video-1');
+    url.searchParams.append('part', 'liveStreamingDetails');
+    url.searchParams.append('key', 'test-api-key-123');
+
+    const protocol = url.protocol === 'https:' ? https : http;
+    
+    console.log(`Requesting video with API key from: ${url.toString()}`);
+
+    protocol.get(url.toString(), (res) => {
+      let data = '';
+      const statusCode = res.statusCode;
+      gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          const videoResponse = JSON.parse(data);
+          gauge.dataStore.scenarioStore.put('videoResponse', videoResponse);
+          console.log(`Received response with status ${statusCode}`);
+          resolve();
+        } catch (error) {
+          reject(new Error(`Failed to parse response: ${error.message}`));
+        }
+      });
+    }).on('error', (error) => {
+      reject(new Error(`HTTP request failed: ${error.message}`));
+    });
+  });
+});
+
+// Request video with Authorization header
+step('Request video via REST with authorization header', async function () {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  return new Promise((resolve, reject) => {
+    if (!restServerAddress) {
+      reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
+      return;
+    }
+
+    const url = new URL('/youtube/v3/videos', restServerAddress);
+    url.searchParams.append('id', 'test-video-1');
+    url.searchParams.append('part', 'liveStreamingDetails');
+
+    const protocol = url.protocol === 'https:' ? https : http;
+    const options = {
+      headers: {
+        'Authorization': 'Bearer test-oauth-token'
+      }
+    };
+    
+    console.log(`Requesting video with Authorization header from: ${url.toString()}`);
+
+    protocol.get(url.toString(), options, (res) => {
+      let data = '';
+      const statusCode = res.statusCode;
+      gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          const videoResponse = JSON.parse(data);
+          gauge.dataStore.scenarioStore.put('videoResponse', videoResponse);
+          console.log(`Received response with status ${statusCode}`);
+          resolve();
+        } catch (error) {
+          reject(new Error(`Failed to parse response: ${error.message}`));
+        }
+      });
+    }).on('error', (error) => {
+      reject(new Error(`HTTP request failed: ${error.message}`));
+    });
+  });
+});
+
+// Authorization Tests for gRPC API
+
+// Send StreamList request without authentication
+step('Send StreamList request without authentication', async function () {
+  const client = gauge.dataStore.scenarioStore.get('client');
+  const request = new messages.LiveChatMessageListRequest();
+  request.setLiveChatId('test-chat-id');
+  request.setPartList(['snippet', 'authorDetails']);
+
+  return new Promise((resolve, reject) => {
+    const streamCall = client.streamList(request);
+    let errorReceived = false;
+
+    streamCall.on('error', (error) => {
+      console.log(`Received expected error: ${error.message}, code: ${error.code}`);
+      errorReceived = true;
+      gauge.dataStore.scenarioStore.put('grpcError', error);
+      resolve();
+    });
+
+    streamCall.on('data', (response) => {
+      // Should not receive data if auth is required
+      console.log('Unexpectedly received data when authentication should be required');
+      streamCall.cancel();
+      reject(new Error('Received data when authentication error was expected'));
+    });
+
+    streamCall.on('end', () => {
+      if (!errorReceived) {
+        reject(new Error('Stream ended without authentication error'));
+      }
+    });
+
+    // Timeout after 3 seconds
+    setTimeout(() => {
+      if (!errorReceived) {
+        streamCall.cancel();
+        reject(new Error('Timeout waiting for authentication error'));
+      }
+    }, 3000);
+  });
+});
+
+// Send StreamList request with API key metadata
+step('Send StreamList request with API key metadata', async function () {
+  const client = gauge.dataStore.scenarioStore.get('client');
+  const request = new messages.LiveChatMessageListRequest();
+  request.setLiveChatId('live-chat-id-1');
+  request.setPartList(['snippet', 'authorDetails']);
+
+  const metadata = new grpc.Metadata();
+  metadata.add('x-goog-api-key', 'test-api-key-123');
+
+  return new Promise((resolve, reject) => {
+    const streamCall = client.streamList(request, metadata);
+    let dataReceived = false;
+
+    streamCall.on('data', (response) => {
+      console.log('Successfully received data with API key authentication');
+      dataReceived = true;
+      streamCall.cancel();
+      resolve();
+    });
+
+    streamCall.on('error', (error) => {
+      // CANCELLED is expected when we cancel the stream
+      if (error.code === grpc.status.CANCELLED && dataReceived) {
+        resolve();
+      } else if (!dataReceived) {
+        reject(new Error(`Stream error: ${error.message}`));
+      }
+    });
+
+    streamCall.on('end', () => {
+      if (!dataReceived) {
+        reject(new Error('Stream ended without receiving data'));
+      }
+    });
+
+    // Timeout after 3 seconds
+    setTimeout(() => {
+      if (!dataReceived) {
+        streamCall.cancel();
+        reject(new Error('Timeout waiting for data with API key'));
+      }
+    }, 3000);
+  });
+});
+
+// Send StreamList request with authorization metadata
+step('Send StreamList request with authorization metadata', async function () {
+  const client = gauge.dataStore.scenarioStore.get('client');
+  const request = new messages.LiveChatMessageListRequest();
+  request.setLiveChatId('live-chat-id-1');
+  request.setPartList(['snippet', 'authorDetails']);
+
+  const metadata = new grpc.Metadata();
+  metadata.add('authorization', 'Bearer test-oauth-token');
+
+  return new Promise((resolve, reject) => {
+    const streamCall = client.streamList(request, metadata);
+    let dataReceived = false;
+
+    streamCall.on('data', (response) => {
+      console.log('Successfully received data with authorization header');
+      dataReceived = true;
+      streamCall.cancel();
+      resolve();
+    });
+
+    streamCall.on('error', (error) => {
+      // CANCELLED is expected when we cancel the stream
+      if (error.code === grpc.status.CANCELLED && dataReceived) {
+        resolve();
+      } else if (!dataReceived) {
+        reject(new Error(`Stream error: ${error.message}`));
+      }
+    });
+
+    streamCall.on('end', () => {
+      if (!dataReceived) {
+        reject(new Error('Stream ended without receiving data'));
+      }
+    });
+
+    // Timeout after 3 seconds
+    setTimeout(() => {
+      if (!dataReceived) {
+        streamCall.cancel();
+        reject(new Error('Timeout waiting for data with authorization header'));
+      }
+    }, 3000);
+  });
+});
+
+// Verify authentication error received
+step('Verify authentication error received', async function () {
+  const grpcError = gauge.dataStore.scenarioStore.get('grpcError');
+  assert.ok(grpcError, 'No gRPC error was received');
+  
+  // Check that it's an UNAUTHENTICATED error
+  assert.strictEqual(
+    grpcError.code,
+    grpc.status.UNAUTHENTICATED,
+    `Error code is ${grpcError.code} but expected ${grpc.status.UNAUTHENTICATED} (UNAUTHENTICATED)`
+  );
+  
+  assert.ok(
+    grpcError.message.toLowerCase().includes('authentication'),
+    `Error message '${grpcError.message}' should mention authentication`
+  );
+  
+  console.log('Verified authentication error received');
+});
+
+// Verify stream starts successfully (for auth tests)
+step('Verify stream starts successfully', async function () {
+  // This step is just a marker - the actual verification happens in the previous step
+  // If we reach here, it means the stream started successfully
+  console.log('Verified stream started successfully with authentication');
+});
