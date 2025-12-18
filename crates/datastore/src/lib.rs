@@ -125,17 +125,26 @@ impl Default for InMemoryRepository {
 
 impl Repository for InMemoryRepository {
     fn get_video(&self, id: &str) -> Option<Video> {
-        self.videos.read().unwrap().get(id).cloned()
+        self.videos
+            .read()
+            .expect("Failed to acquire read lock on videos")
+            .get(id)
+            .cloned()
     }
 
     fn get_videos(&self) -> Vec<Video> {
-        self.videos.read().unwrap().values().cloned().collect()
+        self.videos
+            .read()
+            .expect("Failed to acquire read lock on videos")
+            .values()
+            .cloned()
+            .collect()
     }
 
     fn get_chat_messages(&self, live_chat_id: &str) -> Vec<LiveChatMessage> {
         self.chat_messages
             .read()
-            .unwrap()
+            .expect("Failed to acquire read lock on chat_messages")
             .get(live_chat_id)
             .cloned()
             .unwrap_or_default()
@@ -144,14 +153,14 @@ impl Repository for InMemoryRepository {
     fn add_video(&self, video: Video) {
         self.videos
             .write()
-            .unwrap()
+            .expect("Failed to acquire write lock on videos")
             .insert(video.id.clone(), video);
     }
 
     fn add_chat_message(&self, message: LiveChatMessage) {
         self.chat_messages
             .write()
-            .unwrap()
+            .expect("Failed to acquire write lock on chat_messages")
             .entry(message.live_chat_id.clone())
             .or_insert_with(Vec::new)
             .push(message);
