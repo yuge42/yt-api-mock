@@ -48,7 +48,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
 
             if !has_api_key && !has_auth {
                 return Err(Status::unauthenticated(
-                    "Request is missing required authentication credential. Expected OAuth 2 access token or API key."
+                    "Request is missing required authentication credential. Expected OAuth 2 access token or API key.",
                 ));
             }
         }

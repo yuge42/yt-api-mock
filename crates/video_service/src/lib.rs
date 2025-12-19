@@ -220,10 +220,7 @@ async fn check_auth(request: Request<axum::body::Body>, next: Next) -> Response 
     let has_key_param = query.split('&').any(|param| param.starts_with("key="));
 
     // Check for Authorization header
-    let has_auth_header = request
-        .headers()
-        .get(header::AUTHORIZATION)
-        .is_some();
+    let has_auth_header = request.headers().get(header::AUTHORIZATION).is_some();
 
     // If neither key parameter nor Authorization header is present, return 401
     if !has_key_param && !has_auth_header {
