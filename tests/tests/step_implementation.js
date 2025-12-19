@@ -23,6 +23,53 @@ step('REST server address from environment variable <envVar> or default <default
   console.log(`REST server address set to: ${address}`);
 });
 
+// Helper function to make HTTP requests to the REST API
+function makeRestRequest(restServerAddress, path, queryParams = {}, headers = {}) {
+  return new Promise((resolve, reject) => {
+    if (!restServerAddress) {
+      reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
+      return;
+    }
+
+    const url = new URL(path, restServerAddress);
+    Object.entries(queryParams).forEach(([key, value]) => {
+      url.searchParams.append(key, value);
+    });
+
+    const protocol = url.protocol === 'https:' ? https : http;
+    const options = Object.keys(headers).length > 0 ? { headers } : {};
+    
+    console.log(`Making request to: ${url.toString()}`);
+
+    const requestFn = Object.keys(headers).length > 0 
+      ? (cb) => protocol.get(url.toString(), options, cb)
+      : (cb) => protocol.get(url.toString(), cb);
+
+    requestFn((res) => {
+      let data = '';
+      const statusCode = res.statusCode;
+      gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          const response = JSON.parse(data);
+          gauge.dataStore.scenarioStore.put('videoResponse', response);
+          console.log(`Received response with status ${statusCode}`);
+          resolve({ statusCode, data: response });
+        } catch (error) {
+          reject(new Error(`Failed to parse response: ${error.message}`));
+        }
+      });
+    }).on('error', (error) => {
+      reject(new Error(`HTTP request failed: ${error.message}`));
+    });
+  });
+}
+
 // Connect to the server
 step('Connect to the server', async function () {
   const grpcServerAddress = gauge.dataStore.specStore.get('grpcServerAddress');
@@ -476,133 +523,32 @@ step('Verify error message contains <text>', async function (text) {
 // Request video without authentication
 step('Request video via REST without authentication', async function () {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  return new Promise((resolve, reject) => {
-    if (!restServerAddress) {
-      reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
-      return;
-    }
-
-    const url = new URL('/youtube/v3/videos', restServerAddress);
-    url.searchParams.append('id', 'test-video-1');
-    url.searchParams.append('part', 'liveStreamingDetails');
-
-    const protocol = url.protocol === 'https:' ? https : http;
-    
-    console.log(`Requesting video without auth from: ${url.toString()}`);
-
-    protocol.get(url.toString(), (res) => {
-      let data = '';
-      const statusCode = res.statusCode;
-      gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
-
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-
-      res.on('end', () => {
-        try {
-          const videoResponse = JSON.parse(data);
-          gauge.dataStore.scenarioStore.put('videoResponse', videoResponse);
-          console.log(`Received response with status ${statusCode}`);
-          resolve();
-        } catch (error) {
-          reject(new Error(`Failed to parse response: ${error.message}`));
-        }
-      });
-    }).on('error', (error) => {
-      reject(new Error(`HTTP request failed: ${error.message}`));
-    });
-  });
+  await makeRestRequest(
+    restServerAddress,
+    '/youtube/v3/videos',
+    { id: 'test-video-1', part: 'liveStreamingDetails' }
+  );
 });
 
 // Request video with API key parameter
 step('Request video via REST with API key parameter', async function () {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  return new Promise((resolve, reject) => {
-    if (!restServerAddress) {
-      reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
-      return;
-    }
-
-    const url = new URL('/youtube/v3/videos', restServerAddress);
-    url.searchParams.append('id', 'test-video-1');
-    url.searchParams.append('part', 'liveStreamingDetails');
-    url.searchParams.append('key', 'test-api-key-123');
-
-    const protocol = url.protocol === 'https:' ? https : http;
-    
-    console.log(`Requesting video with API key from: ${url.toString()}`);
-
-    protocol.get(url.toString(), (res) => {
-      let data = '';
-      const statusCode = res.statusCode;
-      gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
-
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-
-      res.on('end', () => {
-        try {
-          const videoResponse = JSON.parse(data);
-          gauge.dataStore.scenarioStore.put('videoResponse', videoResponse);
-          console.log(`Received response with status ${statusCode}`);
-          resolve();
-        } catch (error) {
-          reject(new Error(`Failed to parse response: ${error.message}`));
-        }
-      });
-    }).on('error', (error) => {
-      reject(new Error(`HTTP request failed: ${error.message}`));
-    });
-  });
+  await makeRestRequest(
+    restServerAddress,
+    '/youtube/v3/videos',
+    { id: 'test-video-1', part: 'liveStreamingDetails', key: 'test-api-key-123' }
+  );
 });
 
 // Request video with Authorization header
 step('Request video via REST with authorization header', async function () {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  return new Promise((resolve, reject) => {
-    if (!restServerAddress) {
-      reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
-      return;
-    }
-
-    const url = new URL('/youtube/v3/videos', restServerAddress);
-    url.searchParams.append('id', 'test-video-1');
-    url.searchParams.append('part', 'liveStreamingDetails');
-
-    const protocol = url.protocol === 'https:' ? https : http;
-    const options = {
-      headers: {
-        'Authorization': 'Bearer test-oauth-token'
-      }
-    };
-    
-    console.log(`Requesting video with Authorization header from: ${url.toString()}`);
-
-    protocol.get(url.toString(), options, (res) => {
-      let data = '';
-      const statusCode = res.statusCode;
-      gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
-
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-
-      res.on('end', () => {
-        try {
-          const videoResponse = JSON.parse(data);
-          gauge.dataStore.scenarioStore.put('videoResponse', videoResponse);
-          console.log(`Received response with status ${statusCode}`);
-          resolve();
-        } catch (error) {
-          reject(new Error(`Failed to parse response: ${error.message}`));
-        }
-      });
-    }).on('error', (error) => {
-      reject(new Error(`HTTP request failed: ${error.message}`));
-    });
-  });
+  await makeRestRequest(
+    restServerAddress,
+    '/youtube/v3/videos',
+    { id: 'test-video-1', part: 'liveStreamingDetails' },
+    { 'Authorization': 'Bearer test-oauth-token' }
+  );
 });
 
 // Authorization Tests for gRPC API
