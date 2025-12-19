@@ -1,4 +1,5 @@
 # YouTube Live Chat Streaming Test
+Tags: core, grpc
 
 This specification tests the YouTube Live Chat streaming service using gRPC.
 

@@ -1,9 +1,11 @@
 # YouTube API REST Authorization Test
+Tags: auth, rest
 
 This specification tests the authorization checks for the YouTube Videos List REST API endpoint.
 
 **Prerequisites**: 
-- The mock server must be running with REQUIRE_AUTH=true before executing this test.
+- When running via docker-compose, the REQUIRE_AUTH environment variable is controlled by docker-compose configuration
+- For manual testing, set REQUIRE_AUTH=true when starting the mock server
 - REST server address from environment variable "REST_SERVER_ADDRESS" or default "http://localhost:8080"
 
 * REST server address from environment variable "REST_SERVER_ADDRESS" or default "http://localhost:8080"

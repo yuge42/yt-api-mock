@@ -1,0 +1,12 @@
+# Docker Compose override for authorization tests
+# This file sets REQUIRE_AUTH=true for testing authorization features
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.auth.yml up --build --abort-on-container-exit
+
+services:
+  server:
+    environment:
+      - GRPC_BIND_ADDRESS=[::]:50051
+      - REST_BIND_ADDRESS=[::]:8080
+      - REQUIRE_AUTH=true

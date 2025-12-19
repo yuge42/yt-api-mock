@@ -1,9 +1,11 @@
 # YouTube API gRPC Authorization Test
+Tags: auth, grpc
 
 This specification tests the authorization checks for the YouTube Live Chat gRPC service.
 
 **Prerequisites**: 
-- The mock server must be running with REQUIRE_AUTH=true before executing this test.
+- When running via docker-compose, the REQUIRE_AUTH environment variable is controlled by docker-compose configuration
+- For manual testing, set REQUIRE_AUTH=true when starting the mock server
 - gRPC server address from environment variable "GRPC_SERVER_ADDRESS" or default "localhost:50051"
 
 * gRPC server address from environment variable "GRPC_SERVER_ADDRESS" or default "localhost:50051"

@@ -95,13 +95,58 @@ Or run using gauge directly:
 gauge run specs/
 ```
 
+### Running Tests with Tags
+
+Tests are organized with tags for selective execution:
+- `core` - Core functionality tests (run without REQUIRE_AUTH)
+- `auth` - Authorization tests (require REQUIRE_AUTH=true)
+- `rest` - REST API tests
+- `grpc` - gRPC API tests
+
+Run specific tags:
+```bash
+# Run only core tests
+gauge run --tags "core" specs/
+
+# Run only auth tests (requires REQUIRE_AUTH=true)
+gauge run --tags "auth" specs/
+
+# Run all REST tests
+gauge run --tags "rest" specs/
+```
+
+### Running Authorization Tests
+
+Authorization tests require the server to run with `REQUIRE_AUTH=true`. 
+
+**Using Docker Compose (Recommended):**
+```bash
+cd tests
+docker compose -f docker-compose.yml -f docker-compose.auth.yml up --build --abort-on-container-exit
+```
+
+**Manual approach:**
+```bash
+# Terminal 1: Start server with auth enabled
+REQUIRE_AUTH=true cargo run -p server
+
+# Terminal 2: Run auth tests
+cd tests
+gauge run --tags "auth" specs/
+```
+
 ## Test Structure
 
 - `specs/` - Contains Gauge specification files (`.spec`)
-  - `stream_list.spec` - Tests for the StreamList gRPC streaming endpoint
+  - `stream_list.spec` - Tests for the StreamList gRPC streaming endpoint (Tags: core, grpc)
+  - `videos_list.spec` - Tests for the Videos List REST endpoint (Tags: core, rest)
+  - `auth_rest.spec` - Authorization tests for REST API (Tags: auth, rest)
+  - `auth_grpc.spec` - Authorization tests for gRPC API (Tags: auth, grpc)
 - `tests/` - Contains step implementation files
   - `step_implementation.js` - JavaScript implementation of test steps
 - `proto-gen/` - Generated gRPC client code (auto-generated, gitignored)
+- `docker-compose.yml` - Base docker-compose configuration
+- `docker-compose.auth.yml` - Override for authorization tests (sets REQUIRE_AUTH=true)
 
 ## What the Tests Cover
 
