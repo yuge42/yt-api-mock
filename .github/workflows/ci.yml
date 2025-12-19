@@ -63,7 +63,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Run Gauge tests with Docker Compose
+      - name: Run Gauge core tests with Docker Compose
         run: |
           cd tests
           docker compose up --build --abort-on-container-exit --exit-code-from tests
@@ -71,11 +71,47 @@ jobs:
           DOCKER_BUILDKIT: 1
           COMPOSE_DOCKER_CLI_BUILD: 1
 
-      - name: Upload test reports
+      - name: Upload core test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gauge-test-reports
+          name: gauge-core-test-reports
+          path: tests/reports/
+          retention-days: 7
+
+      - name: Clean up Docker resources
+        if: always()
+        run: |
+          cd tests
+          docker compose down -v
+
+  gauge-auth-tests:
+    name: Gauge Authorization Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Run Gauge auth tests with Docker Compose
+        run: |
+          cd tests
+          docker compose -f docker-compose.yml -f docker-compose.auth.yml up --build --abort-on-container-exit --exit-code-from tests
+        env:
+          DOCKER_BUILDKIT: 1
+          COMPOSE_DOCKER_CLI_BUILD: 1
+
+      - name: Upload auth test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gauge-auth-test-reports
           path: tests/reports/
           retention-days: 7
 
