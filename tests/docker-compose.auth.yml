@@ -10,3 +10,6 @@ services:
       - GRPC_BIND_ADDRESS=[::]:50051
       - REST_BIND_ADDRESS=[::]:8080
       - REQUIRE_AUTH=true
+  
+  tests:
+    command: ["gauge", "run", "--tags", "auth", "specs/"]

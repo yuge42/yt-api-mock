@@ -53,7 +53,7 @@ Note: The generated proto files are gitignored and will be regenerated automatic
 
 ### Docker Approach (Recommended)
 
-Run tests using Docker Compose:
+Run core tests using Docker Compose:
 
 ```bash
 cd tests
@@ -72,7 +72,7 @@ This will:
 - Build the test environment Docker image with Gauge and Node.js
 - Start the mock server with health checks
 - Wait for the server to be healthy
-- Run the Gauge scenario tests
+- Run the Gauge core scenario tests (tagged with "core")
 - Stop all containers when tests complete
 - Exit with the test container's exit code
 

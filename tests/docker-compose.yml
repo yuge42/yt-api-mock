@@ -28,6 +28,7 @@ services:
     environment:
       - GRPC_SERVER_ADDRESS=server:50051
       - REST_SERVER_ADDRESS=http://server:8080
+    command: ["gauge", "run", "--tags", "core", "specs/"]
     networks:
       - yt-api-test
     volumes:
