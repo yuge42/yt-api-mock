@@ -32,11 +32,29 @@ The server runs two services:
 
 #### Configuration
 
-You can configure the bind addresses using environment variables:
+You can configure the bind addresses and authentication using environment variables:
 
 ```bash
 GRPC_BIND_ADDRESS="0.0.0.0:50051" REST_BIND_ADDRESS="0.0.0.0:8080" cargo run -p server
 ```
+
+**Optional Authentication:**
+
+By default, the server does not require authentication. You can enable authentication checks using the `REQUIRE_AUTH` environment variable:
+
+```bash
+REQUIRE_AUTH=true cargo run -p server
+```
+
+When authentication is enabled:
+- **REST API** requires either:
+  - `key` query parameter (API key), or
+  - `Authorization` header (OAuth 2.0)
+- **gRPC API** requires either:
+  - `x-goog-api-key` metadata (API key), or
+  - `authorization` metadata (OAuth 2.0)
+
+Note: The server only checks for the presence of these credentials, not their validity.
 
 ### Verification
 
@@ -48,10 +66,34 @@ You can verify the server using `curl` for REST endpoints and `grpcurl` for gRPC
 curl "http://localhost:8080/youtube/v3/videos?part=liveStreamingDetails&id=test-video-1"
 ```
 
+**With API key (when authentication is enabled):**
+
+```bash
+curl "http://localhost:8080/youtube/v3/videos?part=liveStreamingDetails&id=test-video-1&key=YOUR_API_KEY"
+```
+
+**With OAuth 2.0 token (when authentication is enabled):**
+
+```bash
+curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" "http://localhost:8080/youtube/v3/videos?part=liveStreamingDetails&id=test-video-1"
+```
+
 **Stream chat messages (gRPC):**
 
 ```bash
 grpcurl -plaintext -d '{"live_chat_id": "live-chat-id-1", "part": ["snippet", "authorDetails"]}' localhost:50051 youtube.api.v3.V3DataLiveChatMessageService/StreamList
+```
+
+**With API key metadata (when authentication is enabled):**
+
+```bash
+grpcurl -plaintext -H "x-goog-api-key: YOUR_API_KEY" -d '{"live_chat_id": "live-chat-id-1", "part": ["snippet", "authorDetails"]}' localhost:50051 youtube.api.v3.V3DataLiveChatMessageService/StreamList
+```
+
+**With OAuth 2.0 token metadata (when authentication is enabled):**
+
+```bash
+grpcurl -plaintext -H "authorization: Bearer YOUR_ACCESS_TOKEN" -d '{"live_chat_id": "live-chat-id-1", "part": ["snippet", "authorDetails"]}' localhost:50051 youtube.api.v3.V3DataLiveChatMessageService/StreamList
 ```
 
 **List gRPC services:**

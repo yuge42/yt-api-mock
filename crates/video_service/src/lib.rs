@@ -1,8 +1,9 @@
 use axum::{
     Json, Router,
     extract::{Query, State},
-    http::StatusCode,
-    response::IntoResponse,
+    http::{Request, StatusCode, header},
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
     routing::get,
 };
 use serde::{Deserialize, Serialize};
@@ -198,9 +199,52 @@ async fn videos_list(
     (StatusCode::OK, Json(response)).into_response()
 }
 
+// Middleware to check authorization for REST API
+// Checks for either:
+// 1. 'key' query parameter (API key)
+// 2. 'Authorization' header (OAuth 2.0)
+async fn check_auth(request: Request<axum::body::Body>, next: Next) -> Response {
+    // Check if auth check is enabled via environment variable
+    let require_auth = std::env::var("REQUIRE_AUTH")
+        .unwrap_or_else(|_| "false".to_string())
+        .parse::<bool>()
+        .unwrap_or(false);
+
+    if !require_auth {
+        return next.run(request).await;
+    }
+
+    // Extract query parameters to check for 'key' parameter
+    let uri = request.uri();
+    let query = uri.query().unwrap_or("");
+    let has_key_param = query.split('&').any(|param| param.starts_with("key="));
+
+    // Check for Authorization header
+    let has_auth_header = request.headers().get(header::AUTHORIZATION).is_some();
+
+    // If neither key parameter nor Authorization header is present, return 401
+    if !has_key_param && !has_auth_header {
+        let error = ErrorResponse {
+            error: ErrorDetail {
+                code: 401,
+                message: "Request is missing required authentication credential. Expected OAuth 2 access token, login cookie or other valid authentication credential.".to_string(),
+                errors: vec![ErrorItem {
+                    domain: "global".to_string(),
+                    reason: "required".to_string(),
+                    message: "Login Required".to_string(),
+                }],
+            },
+        };
+        return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
+    }
+
+    next.run(request).await
+}
+
 // Create the router for the video API
 pub fn create_router(repo: Arc<dyn datastore::Repository>) -> Router {
     Router::new()
         .route("/youtube/v3/videos", get(videos_list))
+        .route_layer(middleware::from_fn(check_auth))
         .with_state(repo)
 }

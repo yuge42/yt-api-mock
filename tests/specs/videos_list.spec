@@ -1,4 +1,5 @@
 # YouTube Videos List Test
+Tags: core, rest
 
 This specification tests the YouTube Videos List REST API endpoint.
 
