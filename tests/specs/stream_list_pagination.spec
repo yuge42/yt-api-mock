@@ -13,7 +13,7 @@ This specification tests the pagination functionality in the YouTube Live Chat s
 * Send StreamList request with live chat id "test-chat-id" and parts "snippet,authorDetails"
 * Receive stream of messages
 * Verify received "5" messages
-* Verify each message has next_page_token except the last one
+* Verify each message has next_page_token
 * Close the connection
 
 ## Test pagination with page_token

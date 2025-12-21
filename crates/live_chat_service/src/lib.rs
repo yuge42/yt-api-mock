@@ -121,13 +121,10 @@ impl V3DataLiveChatMessageService for LiveChatService {
                     author_details: Some(author_details),
                 };
 
-                // Generate next_page_token if there are more messages
-                let next_page_token = if i + 1 < messages.len() {
-                    let next_index = (i + 1).to_string();
-                    Some(BASE64.encode(next_index.as_bytes()))
-                } else {
-                    None
-                };
+                // Always generate next_page_token to allow resuming the stream later
+                // even if no more messages exist currently (they may be added later)
+                let next_index = (i + 1).to_string();
+                let next_page_token = Some(BASE64.encode(next_index.as_bytes()));
 
                 let response = LiveChatMessageListResponse {
                     kind: Some("youtube#liveChatMessageListResponse".to_string()),

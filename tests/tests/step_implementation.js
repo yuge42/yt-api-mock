@@ -777,32 +777,23 @@ step('Verify message with id <messageId> does not exist in stream', async functi
 
 // Pagination Tests
 
-// Verify each message has next_page_token except the last one
-step('Verify each message has next_page_token except the last one', async function () {
+// Verify each message has next_page_token
+step('Verify each message has next_page_token', async function () {
   const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
   assert.ok(receivedMessages.length > 0, 'No messages received');
   
   receivedMessages.forEach((message, index) => {
     const nextPageToken = message.getNextPageToken();
-    const isLastMessage = (index === receivedMessages.length - 1);
     
-    if (isLastMessage) {
-      // Last message should NOT have a next_page_token (or it should be empty)
-      assert.ok(
-        !nextPageToken || nextPageToken === '',
-        `Last message (index ${index}) should not have next_page_token but has: ${nextPageToken}`
-      );
-      console.log(`Verified last message has no next_page_token`);
-    } else {
-      // All other messages should have a next_page_token
-      assert.ok(
-        nextPageToken && nextPageToken !== '',
-        `Message ${index} should have next_page_token but it's empty or missing`
-      );
-      console.log(`Message ${index} has next_page_token: ${nextPageToken}`);
-    }
+    // All messages should have a next_page_token (including the last one)
+    // to allow resuming the stream later if new messages are added
+    assert.ok(
+      nextPageToken && nextPageToken !== '',
+      `Message ${index} should have next_page_token but it's empty or missing`
+    );
+    console.log(`Message ${index} has next_page_token: ${nextPageToken}`);
   });
-  console.log('Verified pagination tokens are correct');
+  console.log('Verified all messages have pagination tokens');
 });
 
 // Receive first message and extract page_token
