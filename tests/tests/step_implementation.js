@@ -923,52 +923,31 @@ step('Verify messages start from second message', async function () {
 
 // Edge case tests for page_token
 
-// Send StreamList request with negative page_token
-step('Send StreamList request with negative page_token', async function () {
+// Send StreamList request with page_token for a specific value
+step('Send StreamList request with page_token <tokenValue>', async function (tokenValue) {
   const client = gauge.dataStore.scenarioStore.get('client');
   const request = new messages.LiveChatMessageListRequest();
   request.setLiveChatId('test-chat-id');
   request.setPartList(['snippet', 'authorDetails']);
   
-  // Create a negative page token (base64 encode "-5")
-  const negativeToken = Buffer.from('-5').toString('base64');
-  request.setPageToken(negativeToken);
+  // Create page token by base64 encoding the provided value
+  const pageToken = Buffer.from(tokenValue).toString('base64');
+  request.setPageToken(pageToken);
+  console.log(`Created page_token from value '${tokenValue}': ${pageToken}`);
 
   const streamCall = client.streamList(request);
-  const error = await waitForStreamError(streamCall);
-  gauge.dataStore.scenarioStore.put('grpcError', error);
-});
-
-// Send StreamList request with non-numeric page_token
-step('Send StreamList request with non-numeric page_token', async function () {
-  const client = gauge.dataStore.scenarioStore.get('client');
-  const request = new messages.LiveChatMessageListRequest();
-  request.setLiveChatId('test-chat-id');
-  request.setPartList(['snippet', 'authorDetails']);
   
-  // Create a non-numeric page token (base64 encode "abc")
-  const nonNumericToken = Buffer.from('abc').toString('base64');
-  request.setPageToken(nonNumericToken);
-
-  const streamCall = client.streamList(request);
-  const error = await waitForStreamError(streamCall);
-  gauge.dataStore.scenarioStore.put('grpcError', error);
-});
-
-// Send StreamList request with page_token beyond message range
-step('Send StreamList request with page_token beyond message range', async function () {
-  const client = gauge.dataStore.scenarioStore.get('client');
-  const request = new messages.LiveChatMessageListRequest();
-  request.setLiveChatId('test-chat-id');
-  request.setPartList(['snippet', 'authorDetails']);
-  
-  // Create a page token for index 100 (beyond range)
-  const beyondRangeToken = Buffer.from('100').toString('base64');
-  request.setPageToken(beyondRangeToken);
-
-  const streamCall = client.streamList(request);
+  // Store streamCall for further verification steps
+  // The step that follows will determine if we expect an error or data
   gauge.dataStore.scenarioStore.put('streamCall', streamCall);
-  console.log(`Sent StreamList request with page_token beyond range: ${beyondRangeToken}`);
+  console.log(`Sent StreamList request with page_token: ${pageToken}`);
+});
+
+// Wait for and store error from stream (for error test cases)
+step('Expect error from stream', async function () {
+  const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
+  const error = await waitForStreamError(streamCall);
+  gauge.dataStore.scenarioStore.put('grpcError', error);
 });
 
 // Verify empty stream response
