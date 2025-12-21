@@ -27,3 +27,23 @@ This specification tests the pagination functionality in the YouTube Live Chat s
 * Receive remaining messages
 * Verify messages start from second message
 * Close the connection
+
+## Test edge cases for page_token
+
+### Test negative index rejection
+* Connect to the server
+* Send StreamList request with negative page_token
+* Verify error with message containing "index cannot be negative"
+* Close the connection
+
+### Test non-numeric token rejection
+* Connect to the server
+* Send StreamList request with non-numeric page_token
+* Verify error with message containing "not a valid integer"
+* Close the connection
+
+### Test index beyond range
+* Connect to the server
+* Send StreamList request with page_token beyond message range
+* Verify empty stream response
+* Close the connection

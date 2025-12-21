@@ -68,15 +68,22 @@ impl V3DataLiveChatMessageService for LiveChatService {
                 // Decode the page token (simple base64 encoding of the index)
                 match BASE64.decode(&token) {
                     Ok(decoded) => {
-                        match String::from_utf8(decoded)
-                            .ok()
-                            .and_then(|s| s.parse::<usize>().ok())
-                        {
-                            Some(index) => index,
-                            None => return Err(Status::invalid_argument("Invalid page_token")),
+                        let decoded_str = String::from_utf8(decoded)
+                            .map_err(|_| Status::invalid_argument("Invalid page_token: not valid UTF-8"))?;
+                        
+                        // First check if it's a valid integer (including negative check)
+                        let parsed_int = decoded_str.parse::<i64>()
+                            .map_err(|_| Status::invalid_argument("Invalid page_token: not a valid integer"))?;
+                        
+                        // Reject negative indices
+                        if parsed_int < 0 {
+                            return Err(Status::invalid_argument("Invalid page_token: index cannot be negative"));
                         }
+                        
+                        // Convert to usize safely
+                        parsed_int as usize
                     }
-                    Err(_) => return Err(Status::invalid_argument("Invalid page_token")),
+                    Err(_) => return Err(Status::invalid_argument("Invalid page_token: not valid base64")),
                 }
             }
             _ => 0, // Start from the beginning if no page_token
@@ -84,6 +91,10 @@ impl V3DataLiveChatMessageService for LiveChatService {
 
         // Get chat messages from the datastore filtered by live_chat_id
         let messages = self.repo.get_chat_messages(&live_chat_id);
+        
+        // Note: If start_index is beyond the current message range, the stream will be empty.
+        // This is intentional behavior to allow clients to resume from a future position
+        // when new messages are added.
 
         tokio::spawn(async move {
             for (i, msg) in messages.iter().enumerate().skip(start_index) {

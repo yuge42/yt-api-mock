@@ -937,3 +937,180 @@ step('Verify messages start from second message', async function () {
   console.log(`Verified pagination: first message in continuation is ${messageId}`);
   console.log(`Received ${remainingMessages.length} message(s) in continuation`);
 });
+
+// Edge case tests for page_token
+
+// Send StreamList request with negative page_token
+step('Send StreamList request with negative page_token', async function () {
+  const client = gauge.dataStore.scenarioStore.get('client');
+  const request = new messages.LiveChatMessageListRequest();
+  request.setLiveChatId('test-chat-id');
+  request.setPartList(['snippet', 'authorDetails']);
+  
+  // Create a negative page token (base64 encode "-5")
+  const negativeToken = Buffer.from('-5').toString('base64');
+  request.setPageToken(negativeToken);
+
+  return new Promise((resolve, reject) => {
+    const streamCall = client.streamList(request);
+    let errorReceived = false;
+
+    streamCall.on('error', (error) => {
+      console.log(`Received expected error: ${error.message}, code: ${error.code}`);
+      errorReceived = true;
+      gauge.dataStore.scenarioStore.put('grpcError', error);
+      resolve();
+    });
+
+    streamCall.on('data', (response) => {
+      // Should not receive data
+      streamCall.cancel();
+      reject(new Error('Received data when error was expected for negative index'));
+    });
+
+    streamCall.on('end', () => {
+      if (!errorReceived) {
+        reject(new Error('Stream ended without error for negative index'));
+      }
+    });
+
+    setTimeout(() => {
+      if (!errorReceived) {
+        streamCall.cancel();
+        reject(new Error('Timeout waiting for error on negative index'));
+      }
+    }, 3000);
+  });
+});
+
+// Send StreamList request with non-numeric page_token
+step('Send StreamList request with non-numeric page_token', async function () {
+  const client = gauge.dataStore.scenarioStore.get('client');
+  const request = new messages.LiveChatMessageListRequest();
+  request.setLiveChatId('test-chat-id');
+  request.setPartList(['snippet', 'authorDetails']);
+  
+  // Create a non-numeric page token (base64 encode "abc")
+  const nonNumericToken = Buffer.from('abc').toString('base64');
+  request.setPageToken(nonNumericToken);
+
+  return new Promise((resolve, reject) => {
+    const streamCall = client.streamList(request);
+    let errorReceived = false;
+
+    streamCall.on('error', (error) => {
+      console.log(`Received expected error: ${error.message}, code: ${error.code}`);
+      errorReceived = true;
+      gauge.dataStore.scenarioStore.put('grpcError', error);
+      resolve();
+    });
+
+    streamCall.on('data', (response) => {
+      // Should not receive data
+      streamCall.cancel();
+      reject(new Error('Received data when error was expected for non-numeric token'));
+    });
+
+    streamCall.on('end', () => {
+      if (!errorReceived) {
+        reject(new Error('Stream ended without error for non-numeric token'));
+      }
+    });
+
+    setTimeout(() => {
+      if (!errorReceived) {
+        streamCall.cancel();
+        reject(new Error('Timeout waiting for error on non-numeric token'));
+      }
+    }, 3000);
+  });
+});
+
+// Send StreamList request with page_token beyond message range
+step('Send StreamList request with page_token beyond message range', async function () {
+  const client = gauge.dataStore.scenarioStore.get('client');
+  const request = new messages.LiveChatMessageListRequest();
+  request.setLiveChatId('test-chat-id');
+  request.setPartList(['snippet', 'authorDetails']);
+  
+  // Create a page token for index 100 (beyond range)
+  const beyondRangeToken = Buffer.from('100').toString('base64');
+  request.setPageToken(beyondRangeToken);
+
+  const streamCall = client.streamList(request);
+  gauge.dataStore.scenarioStore.put('streamCall', streamCall);
+  console.log(`Sent StreamList request with page_token beyond range: ${beyondRangeToken}`);
+});
+
+// Verify empty stream response
+step('Verify empty stream response', async function () {
+  const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
+  return new Promise((resolve, reject) => {
+    const receivedMessages = [];
+    let streamEnded = false;
+
+    streamCall.on('data', (response) => {
+      console.log(`Unexpectedly received message: ${response.getEtag()}`);
+      receivedMessages.push(response);
+    });
+
+    streamCall.on('end', () => {
+      console.log('Stream ended');
+      streamEnded = true;
+      // Verify no messages were received
+      assert.strictEqual(
+        receivedMessages.length,
+        0,
+        `Expected empty stream but received ${receivedMessages.length} message(s)`
+      );
+      console.log('Verified empty stream for index beyond range');
+      resolve();
+    });
+
+    streamCall.on('error', (error) => {
+      // CANCELLED is expected if we cancel, but we shouldn't get other errors
+      if (error.code === grpc.status.CANCELLED) {
+        // Check if we got messages before cancel
+        assert.strictEqual(
+          receivedMessages.length,
+          0,
+          `Expected empty stream but received ${receivedMessages.length} message(s)`
+        );
+        resolve();
+      } else {
+        reject(new Error(`Unexpected error: ${error.message}`));
+      }
+    });
+
+    setTimeout(() => {
+      if (!streamEnded) {
+        streamCall.cancel();
+      }
+      setTimeout(() => {
+        if (receivedMessages.length === 0) {
+          console.log('Verified empty stream for index beyond range');
+          resolve();
+        }
+      }, 100);
+    }, 3000);
+  });
+});
+
+// Verify error with message containing specific text
+step('Verify error with message containing <text>', async function (text) {
+  const grpcError = gauge.dataStore.scenarioStore.get('grpcError');
+  assert.ok(grpcError, 'No gRPC error was received');
+  
+  assert.strictEqual(
+    grpcError.code,
+    grpc.status.INVALID_ARGUMENT,
+    `Error code is ${grpcError.code} but expected ${grpc.status.INVALID_ARGUMENT} (INVALID_ARGUMENT)`
+  );
+  
+  assert.ok(
+    grpcError.message.includes(text),
+    `Error message '${grpcError.message}' should contain '${text}'`
+  );
+  
+  console.log(`Verified error contains: ${text}`);
+});
