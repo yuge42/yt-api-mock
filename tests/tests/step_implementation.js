@@ -13,92 +13,17 @@ const fetch = require('node-fetch');
 // ============================================================================
 
 /**
- * Wait for an error from a stream call
- * @param {object} streamCall - The gRPC stream call
- * @param {number} timeout - Timeout in milliseconds
- * @returns {Promise<Error>} The error received
- */
-function waitForStreamError(streamCall, timeout = 3000) {
-  return new Promise((resolve, reject) => {
-    let errorReceived = false;
-
-    streamCall.on('error', (error) => {
-      console.log(`Received expected error: ${error.message}, code: ${error.code}`);
-      errorReceived = true;
-      resolve(error);
-    });
-
-    streamCall.on('data', (response) => {
-      streamCall.cancel();
-      reject(new Error('Received data when error was expected'));
-    });
-
-    streamCall.on('end', () => {
-      if (!errorReceived) {
-        reject(new Error('Stream ended without error'));
-      }
-    });
-
-    setTimeout(() => {
-      if (!errorReceived) {
-        streamCall.cancel();
-        reject(new Error('Timeout waiting for error'));
-      }
-    }, timeout);
-  });
-}
-
-/**
- * Wait for data from a stream and cancel after receiving it
- * @param {object} streamCall - The gRPC stream call
- * @param {number} timeout - Timeout in milliseconds
- * @returns {Promise<void>}
- */
-function waitForStreamData(streamCall, timeout = 3000) {
-  return new Promise((resolve, reject) => {
-    let dataReceived = false;
-
-    streamCall.on('data', (response) => {
-      console.log('Successfully received data from stream');
-      dataReceived = true;
-      streamCall.cancel();
-      resolve();
-    });
-
-    streamCall.on('error', (error) => {
-      if (error.code === grpc.status.CANCELLED && dataReceived) {
-        resolve();
-      } else if (!dataReceived) {
-        reject(new Error(`Stream error: ${error.message}`));
-      }
-    });
-
-    streamCall.on('end', () => {
-      if (!dataReceived) {
-        reject(new Error('Stream ended without receiving data'));
-      }
-    });
-
-    setTimeout(() => {
-      if (!dataReceived) {
-        streamCall.cancel();
-        reject(new Error('Timeout waiting for data'));
-      }
-    }, timeout);
-  });
-}
-
-/**
  * Collect messages from a stream with timeout
+ * This is the main stream collection function that handles all cases
  * @param {object} streamCall - The gRPC stream call
  * @param {number} timeout - Timeout in milliseconds
- * @returns {Promise<Array>} Array of received messages
+ * @returns {Promise<object>} Object with messages array and error (if any)
  */
 function collectStreamMessages(streamCall, timeout = 10000) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const receivedMessages = [];
     let streamEnded = false;
-    let errorOccurred = false;
+    let streamError = null;
 
     streamCall.on('data', (response) => {
       console.log(`Received message: ${response.getEtag()}`);
@@ -108,124 +33,13 @@ function collectStreamMessages(streamCall, timeout = 10000) {
     streamCall.on('end', () => {
       console.log('Stream ended normally');
       streamEnded = true;
-      if (!errorOccurred) {
-        resolve(receivedMessages);
-      }
+      resolve({ messages: receivedMessages, error: streamError });
     });
 
     streamCall.on('error', (error) => {
-      console.log(`Stream error: ${error.message}`);
-      errorOccurred = true;
-      if (receivedMessages.length > 0 || error.code === grpc.status.CANCELLED) {
-        resolve(receivedMessages);
-      } else {
-        reject(new Error(`Stream error: ${error.message}`));
-      }
-    });
-
-    setTimeout(() => {
-      if (!streamEnded && !errorOccurred) {
-        streamCall.cancel();
-      }
-      setTimeout(() => {
-        if (!streamEnded && receivedMessages.length > 0) {
-          resolve(receivedMessages);
-        } else if (!streamEnded && receivedMessages.length === 0 && !errorOccurred) {
-          reject(new Error('No messages received'));
-        }
-      }, 100);
-    }, timeout);
-  });
-}
-
-/**
- * Wait for the first message from a stream and extract it
- * @param {object} streamCall - The gRPC stream call
- * @param {number} timeout - Timeout in milliseconds
- * @returns {Promise<object>} The first message received
- */
-function waitForFirstMessage(streamCall, timeout = 5000) {
-  return new Promise((resolve, reject) => {
-    let firstMessage = null;
-    let streamEnded = false;
-    let errorOccurred = false;
-
-    streamCall.on('data', (response) => {
-      if (!firstMessage) {
-        console.log(`Received first message: ${response.getEtag()}`);
-        firstMessage = response;
-        streamCall.cancel();
-      }
-    });
-
-    streamCall.on('end', () => {
-      console.log('Stream ended');
-      streamEnded = true;
-      if (!errorOccurred && firstMessage) {
-        resolve(firstMessage);
-      }
-    });
-
-    streamCall.on('error', (error) => {
-      console.log(`Stream error: ${error.message}`);
-      errorOccurred = true;
-      if (firstMessage && error.code === grpc.status.CANCELLED) {
-        resolve(firstMessage);
-      } else if (!firstMessage) {
-        reject(new Error(`Stream error before receiving first message: ${error.message}`));
-      }
-    });
-
-    setTimeout(() => {
-      if (!streamEnded && !firstMessage) {
-        streamCall.cancel();
-        reject(new Error('Timeout waiting for first message'));
-      } else if (!streamEnded && firstMessage) {
-        resolve(firstMessage);
-      }
-    }, timeout);
-  });
-}
-
-/**
- * Verify stream is empty (no messages received)
- * @param {object} streamCall - The gRPC stream call
- * @param {number} timeout - Timeout in milliseconds
- * @returns {Promise<void>}
- */
-function verifyEmptyStream(streamCall, timeout = 3000) {
-  return new Promise((resolve, reject) => {
-    const receivedMessages = [];
-    let streamEnded = false;
-
-    streamCall.on('data', (response) => {
-      console.log(`Unexpectedly received message: ${response.getEtag()}`);
-      receivedMessages.push(response);
-    });
-
-    streamCall.on('end', () => {
-      console.log('Stream ended');
-      streamEnded = true;
-      assert.strictEqual(
-        receivedMessages.length,
-        0,
-        `Expected empty stream but received ${receivedMessages.length} message(s)`
-      );
-      console.log('Verified empty stream');
-      resolve();
-    });
-
-    streamCall.on('error', (error) => {
-      if (error.code === grpc.status.CANCELLED) {
-        assert.strictEqual(
-          receivedMessages.length,
-          0,
-          `Expected empty stream but received ${receivedMessages.length} message(s)`
-        );
-        resolve();
-      } else {
-        reject(new Error(`Unexpected error: ${error.message}`));
-      }
+      console.log(`Stream error: ${error.message}, code: ${error.code}`);
+      streamError = error;
+      // Don't resolve here, wait for timeout or end
     });
 
     setTimeout(() => {
@@ -233,10 +47,7 @@ function verifyEmptyStream(streamCall, timeout = 3000) {
         streamCall.cancel();
       }
       setTimeout(() => {
-        if (receivedMessages.length === 0) {
-          console.log('Verified empty stream');
-          resolve();
-        }
+        resolve({ messages: receivedMessages, error: streamError });
       }, 100);
     }, timeout);
   });
@@ -320,8 +131,9 @@ step('Send StreamList request with live chat id <liveChatId> and parts <parts>',
 // Receive stream of messages
 step('Receive stream of messages', async function () {
   const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
-  const receivedMessages = await collectStreamMessages(streamCall);
-  gauge.dataStore.scenarioStore.put('receivedMessages', receivedMessages);
+  const result = await collectStreamMessages(streamCall);
+  gauge.dataStore.scenarioStore.put('receivedMessages', result.messages);
+  gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
 
 // Verify number of messages received
@@ -514,7 +326,13 @@ step('Verify activeLiveChatId can be used with live chat service', async functio
   request.setPartList(['snippet', 'authorDetails']);
 
   const stream = client.streamList(request);
-  await waitForStreamData(stream);
+  const result = await collectStreamMessages(stream, 3000);
+  
+  // Verify we received at least one message
+  assert.ok(
+    result.messages.length > 0,
+    'No messages received from live chat service'
+  );
   console.log('Successfully verified chat ID works with live chat service');
 });
 
@@ -642,8 +460,9 @@ step('Send StreamList request without authentication', async function () {
   request.setPartList(['snippet', 'authorDetails']);
 
   const streamCall = client.streamList(request);
-  const error = await waitForStreamError(streamCall);
-  gauge.dataStore.scenarioStore.put('grpcError', error);
+  const result = await collectStreamMessages(streamCall, 3000);
+  gauge.dataStore.scenarioStore.put('receivedMessages', result.messages);
+  gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
 
 // Send StreamList request with API key metadata
@@ -657,8 +476,9 @@ step('Send StreamList request with API key metadata', async function () {
   metadata.add('x-goog-api-key', 'test-api-key-123');
 
   const streamCall = client.streamList(request, metadata);
-  await waitForStreamData(streamCall);
-  console.log('Successfully received data with API key authentication');
+  const result = await collectStreamMessages(streamCall, 3000);
+  gauge.dataStore.scenarioStore.put('receivedMessages', result.messages);
+  gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
 
 // Send StreamList request with authorization metadata
@@ -672,25 +492,26 @@ step('Send StreamList request with authorization metadata', async function () {
   metadata.add('authorization', 'Bearer test-oauth-token');
 
   const streamCall = client.streamList(request, metadata);
-  await waitForStreamData(streamCall);
-  console.log('Successfully received data with authorization header');
+  const result = await collectStreamMessages(streamCall, 3000);
+  gauge.dataStore.scenarioStore.put('receivedMessages', result.messages);
+  gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
 
 // Verify authentication error received
 step('Verify authentication error received', async function () {
-  const grpcError = gauge.dataStore.scenarioStore.get('grpcError');
-  assert.ok(grpcError, 'No gRPC error was received');
+  const streamError = gauge.dataStore.scenarioStore.get('streamError');
+  assert.ok(streamError, 'No stream error was received');
   
   // Check that it's an UNAUTHENTICATED error
   assert.strictEqual(
-    grpcError.code,
+    streamError.code,
     grpc.status.UNAUTHENTICATED,
-    `Error code is ${grpcError.code} but expected ${grpc.status.UNAUTHENTICATED} (UNAUTHENTICATED)`
+    `Error code is ${streamError.code} but expected ${grpc.status.UNAUTHENTICATED} (UNAUTHENTICATED)`
   );
   
   assert.ok(
-    grpcError.message.toLowerCase().includes('authentication'),
-    `Error message '${grpcError.message}' should mention authentication`
+    streamError.message.toLowerCase().includes('authentication'),
+    `Error message '${streamError.message}' should mention authentication`
   );
   
   console.log('Verified authentication error received');
@@ -698,8 +519,20 @@ step('Verify authentication error received', async function () {
 
 // Verify stream starts successfully (for auth tests)
 step('Verify stream starts successfully', async function () {
-  // This step is just a marker - the actual verification happens in the previous step
-  // If we reach here, it means the stream started successfully
+  const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
+  const streamError = gauge.dataStore.scenarioStore.get('streamError');
+  
+  // Verify no error occurred
+  if (streamError && streamError.code !== grpc.status.CANCELLED) {
+    throw new Error(`Stream error occurred: ${streamError.message}`);
+  }
+  
+  // Verify we received at least one message
+  assert.ok(
+    receivedMessages.length > 0,
+    'No messages received - stream should have started successfully'
+  );
+  
   console.log('Verified stream started successfully with authentication');
 });
 
@@ -869,9 +702,12 @@ step('Verify each message has next_page_token', async function () {
 // Receive first message and extract page_token
 step('Receive first message and extract page_token', async function () {
   const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
-  const firstMessage = await waitForFirstMessage(streamCall);
+  const result = await collectStreamMessages(streamCall, 5000);
+  
+  assert.ok(result.messages.length > 0, 'No messages received');
+  const firstMessage = result.messages[0];
   const nextPageToken = firstMessage.getNextPageToken();
-  console.log(`Extracted next_page_token: ${nextPageToken}`);
+  console.log(`Extracted next_page_token from first message: ${nextPageToken}`);
   gauge.dataStore.scenarioStore.put('extractedPageToken', nextPageToken);
 });
 
@@ -896,8 +732,9 @@ step('Send StreamList request with extracted page_token', async function () {
 // Receive remaining messages
 step('Receive remaining messages', async function () {
   const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
-  const receivedMessages = await collectStreamMessages(streamCall);
-  gauge.dataStore.scenarioStore.put('remainingMessages', receivedMessages);
+  const result = await collectStreamMessages(streamCall);
+  gauge.dataStore.scenarioStore.put('remainingMessages', result.messages);
+  gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
 
 // Verify messages start from second message
@@ -936,40 +773,50 @@ step('Send StreamList request with page_token <tokenValue>', async function (tok
   console.log(`Created page_token from value '${tokenValue}': ${pageToken}`);
 
   const streamCall = client.streamList(request);
-  
-  // Store streamCall for further verification steps
-  // The step that follows will determine if we expect an error or data
   gauge.dataStore.scenarioStore.put('streamCall', streamCall);
   console.log(`Sent StreamList request with page_token: ${pageToken}`);
 });
 
-// Wait for and store error from stream (for error test cases)
-step('Expect error from stream', async function () {
+// Collect stream result (messages and error)
+step('Collect stream result', async function () {
   const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
-  const error = await waitForStreamError(streamCall);
-  gauge.dataStore.scenarioStore.put('grpcError', error);
+  const result = await collectStreamMessages(streamCall, 3000);
+  gauge.dataStore.scenarioStore.put('receivedMessages', result.messages);
+  gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
 
-// Verify empty stream response
-step('Verify empty stream response', async function () {
-  const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
-  await verifyEmptyStream(streamCall);
+// Verify stream returned error
+step('Verify stream returned error', async function () {
+  const streamError = gauge.dataStore.scenarioStore.get('streamError');
+  assert.ok(streamError, 'Expected stream error but none was received');
+  console.log(`Verified stream returned error: ${streamError.message}`);
+});
+
+// Verify stream has no messages
+step('Verify stream has no messages', async function () {
+  const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
+  assert.strictEqual(
+    receivedMessages.length,
+    0,
+    `Expected empty stream but received ${receivedMessages.length} message(s)`
+  );
+  console.log('Verified stream has no messages');
 });
 
 // Verify error with message containing specific text
 step('Verify error with message containing <text>', async function (text) {
-  const grpcError = gauge.dataStore.scenarioStore.get('grpcError');
-  assert.ok(grpcError, 'No gRPC error was received');
+  const streamError = gauge.dataStore.scenarioStore.get('streamError');
+  assert.ok(streamError, 'No stream error was received');
   
   assert.strictEqual(
-    grpcError.code,
+    streamError.code,
     grpc.status.INVALID_ARGUMENT,
-    `Error code is ${grpcError.code} but expected ${grpc.status.INVALID_ARGUMENT} (INVALID_ARGUMENT)`
+    `Error code is ${streamError.code} but expected ${grpc.status.INVALID_ARGUMENT} (INVALID_ARGUMENT)`
   );
   
   assert.ok(
-    grpcError.message.includes(text),
-    `Error message '${grpcError.message}' should contain '${text}'`
+    streamError.message.includes(text),
+    `Error message '${streamError.message}' should contain '${text}'`
   );
   
   console.log(`Verified error contains: ${text}`);
