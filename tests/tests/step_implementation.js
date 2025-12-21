@@ -712,3 +712,122 @@ step('Verify stream starts successfully', async function () {
   // If we reach here, it means the stream started successfully
   console.log('Verified stream started successfully with authentication');
 });
+
+// Control Endpoints Steps
+
+// Helper function to make HTTP POST requests to the control API
+function makeControlRequest(restServerAddress, path, body) {
+  return new Promise((resolve, reject) => {
+    if (!restServerAddress) {
+      reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
+      return;
+    }
+
+    const url = new URL(path, restServerAddress);
+    const protocol = url.protocol === 'https:' ? https : http;
+    const postData = JSON.stringify(body);
+    
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': postData.length
+      }
+    };
+
+    console.log(`Making POST request to: ${url.toString()}`);
+    console.log(`Request body: ${postData}`);
+
+    const req = protocol.request(url.toString(), options, (res) => {
+      let data = '';
+      const statusCode = res.statusCode;
+      gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          const response = JSON.parse(data);
+          gauge.dataStore.scenarioStore.put('controlResponse', response);
+          console.log(`Received response with status ${statusCode}`);
+          console.log(`Response: ${data}`);
+          resolve({ statusCode, data: response });
+        } catch (error) {
+          reject(new Error(`Failed to parse response: ${error.message}`));
+        }
+      });
+    });
+
+    req.on('error', (error) => {
+      reject(new Error(`HTTP request failed: ${error.message}`));
+    });
+
+    req.write(postData);
+    req.end();
+  });
+}
+
+// Create video via control endpoint
+step('Create video via control endpoint with id <videoId> and liveChatId <liveChatId>', async function (videoId, liveChatId) {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  const requestBody = {
+    id: videoId,
+    channelId: 'test-channel',
+    title: 'Test Video',
+    description: 'A test video created via control endpoint',
+    channelTitle: 'Test Channel',
+    publishedAt: '2024-01-01T00:00:00Z',
+    liveChatId: liveChatId,
+    actualStartTime: '2024-01-01T00:00:00Z',
+    concurrentViewers: 100
+  };
+
+  await makeControlRequest(restServerAddress, '/control/videos', requestBody);
+  console.log(`Created video with id: ${videoId}`);
+});
+
+// Create chat message via control endpoint
+step('Create chat message via control endpoint with id <messageId> and liveChatId <liveChatId>', async function (messageId, liveChatId) {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  const requestBody = {
+    id: messageId,
+    liveChatId: liveChatId,
+    authorChannelId: 'test-author',
+    authorDisplayName: 'Test Author',
+    messageText: 'Test message from control endpoint',
+    publishedAt: '2024-01-01T00:00:00Z',
+    isVerified: true
+  };
+
+  await makeControlRequest(restServerAddress, '/control/chat_messages', requestBody);
+  console.log(`Created chat message with id: ${messageId}`);
+});
+
+// Verify control response success
+step('Verify control response success is <expectedSuccess>', async function (expectedSuccess) {
+  const controlResponse = gauge.dataStore.scenarioStore.get('controlResponse');
+  assert.ok(controlResponse, 'No control response received');
+  
+  const expectedBool = expectedSuccess === 'true';
+  assert.strictEqual(
+    controlResponse.success,
+    expectedBool,
+    `Control response success is '${controlResponse.success}' but expected '${expectedBool}'`
+  );
+  console.log(`Verified control response success: ${expectedBool}`);
+});
+
+// Verify control response message contains text
+step('Verify control response message contains <text>', async function (text) {
+  const controlResponse = gauge.dataStore.scenarioStore.get('controlResponse');
+  assert.ok(controlResponse, 'No control response received');
+  assert.ok(controlResponse.message, 'No message in control response');
+  
+  assert.ok(
+    controlResponse.message.includes(text),
+    `Control response message '${controlResponse.message}' does not contain '${text}'`
+  );
+  console.log(`Verified control response message contains: ${text}`);
+});
