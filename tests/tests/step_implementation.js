@@ -136,6 +136,15 @@ step('Receive stream of messages', async function () {
   gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
 
+// Receive stream of messages with timeout
+step('Receive stream of messages with timeout <timeoutMs> ms', async function (timeoutMs) {
+  const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
+  const timeout = parseInt(timeoutMs, 10);
+  const result = await collectStreamMessages(streamCall, timeout);
+  gauge.dataStore.scenarioStore.put('receivedMessages', result.messages);
+  gauge.dataStore.scenarioStore.put('streamError', result.error);
+});
+
 // Verify number of messages received
 step('Verify received <count> messages', async function (count) {
   const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
@@ -775,14 +784,6 @@ step('Send StreamList request with page_token <tokenValue>', async function (tok
   const streamCall = client.streamList(request);
   gauge.dataStore.scenarioStore.put('streamCall', streamCall);
   console.log(`Sent StreamList request with page_token: ${pageToken}`);
-});
-
-// Receive stream of messages with short timeout
-step('Receive stream of messages with short timeout', async function () {
-  const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
-  const result = await collectStreamMessages(streamCall, 3000);
-  gauge.dataStore.scenarioStore.put('receivedMessages', result.messages);
-  gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
 
 // Verify stream returned error
