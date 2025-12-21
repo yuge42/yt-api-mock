@@ -1,0 +1,17 @@
+[package]
+name = "control_service"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+authors.workspace = true
+description.workspace = true
+version.workspace = true
+
+[dependencies]
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+datastore = { path = "../datastore" }
+domain = { path = "../domain" }
