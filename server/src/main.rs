@@ -1,9 +1,9 @@
+use axum::Router;
 use live_chat_service::{create_service, proto::FILE_DESCRIPTOR_SET};
 use std::sync::Arc;
 use std::time::SystemTime;
 use tonic::transport::Server as GrpcServer;
 use tower::ServiceBuilder;
-use axum::Router;
 
 // Middleware to log access requests
 #[derive(Clone)]
@@ -92,10 +92,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create REST service for videos API with shared datastore
     let video_router = video_service::create_router(Arc::clone(&repo));
-    
+
     // Create control service for managing videos and chat messages
     let control_router = control_service::create_router(Arc::clone(&repo));
-    
+
     // Nest routers under their respective paths to avoid conflicts
     let rest_app = Router::new()
         .nest("/youtube/v3", video_router)
