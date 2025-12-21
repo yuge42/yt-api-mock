@@ -111,7 +111,7 @@ async fn create_chat_message(
 /// Create the router for the control API
 pub fn create_router(repo: Arc<dyn datastore::Repository>) -> Router {
     Router::new()
-        .route("/control/videos", post(create_video))
-        .route("/control/chat_messages", post(create_chat_message))
+        .route("/videos", post(create_video))
+        .route("/chat_messages", post(create_chat_message))
         .with_state(repo)
 }

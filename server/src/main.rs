@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 use tonic::transport::Server as GrpcServer;
 use tower::ServiceBuilder;
+use axum::Router;
 
 // Middleware to log access requests
 #[derive(Clone)]
@@ -95,8 +96,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create control service for managing videos and chat messages
     let control_router = control_service::create_router(Arc::clone(&repo));
     
-    // Merge the routers
-    let rest_app = video_router.merge(control_router);
+    // Nest routers under their respective paths to avoid conflicts
+    let rest_app = Router::new()
+        .nest("/youtube/v3", video_router)
+        .nest("/control", control_router);
 
     println!("gRPC server (live chat) listening on {}", grpc_addr);
     println!("REST server (videos API) listening on {}", rest_addr);
