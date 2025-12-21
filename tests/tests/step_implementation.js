@@ -777,8 +777,8 @@ step('Send StreamList request with page_token <tokenValue>', async function (tok
   console.log(`Sent StreamList request with page_token: ${pageToken}`);
 });
 
-// Collect stream result (messages and error)
-step('Collect stream result', async function () {
+// Receive stream of messages with short timeout
+step('Receive stream of messages with short timeout', async function () {
   const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
   const result = await collectStreamMessages(streamCall, 3000);
   gauge.dataStore.scenarioStore.put('receivedMessages', result.messages);
