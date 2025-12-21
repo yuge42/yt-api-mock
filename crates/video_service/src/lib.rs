@@ -244,7 +244,7 @@ async fn check_auth(request: Request<axum::body::Body>, next: Next) -> Response 
 // Create the router for the video API
 pub fn create_router(repo: Arc<dyn datastore::Repository>) -> Router {
     Router::new()
-        .route("/youtube/v3/videos", get(videos_list))
+        .route("/videos", get(videos_list))
         .route_layer(middleware::from_fn(check_auth))
         .with_state(repo)
 }

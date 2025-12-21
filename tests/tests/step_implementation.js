@@ -5,9 +5,8 @@ const grpc = require('@grpc/grpc-js');
 const messages = require('../proto-gen/stream_list_pb');
 const services = require('../proto-gen/stream_list_grpc_pb');
 const assert = require('assert');
-const http = require('http');
-const https = require('https');
 const { URL } = require('url');
+const fetch = require('node-fetch');
 
 // Store gRPC server address from environment or default
 step('gRPC server address from environment variable <envVar> or default <defaultAddress>', async function (envVar, defaultAddress) {
@@ -23,51 +22,32 @@ step('REST server address from environment variable <envVar> or default <default
   console.log(`REST server address set to: ${address}`);
 });
 
-// Helper function to make HTTP requests to the REST API
-function makeRestRequest(restServerAddress, path, queryParams = {}, headers = {}) {
-  return new Promise((resolve, reject) => {
-    if (!restServerAddress) {
-      reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
-      return;
-    }
+// Helper function to make HTTP GET requests to the REST API
+async function makeRestRequest(restServerAddress, path, queryParams = {}, headers = {}) {
+  if (!restServerAddress) {
+    throw new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.');
+  }
 
-    const url = new URL(path, restServerAddress);
-    Object.entries(queryParams).forEach(([key, value]) => {
-      url.searchParams.append(key, value);
-    });
-
-    const protocol = url.protocol === 'https:' ? https : http;
-    const options = Object.keys(headers).length > 0 ? { headers } : {};
-    
-    console.log(`Making request to: ${url.toString()}`);
-
-    const requestFn = Object.keys(headers).length > 0 
-      ? (cb) => protocol.get(url.toString(), options, cb)
-      : (cb) => protocol.get(url.toString(), cb);
-
-    requestFn((res) => {
-      let data = '';
-      const statusCode = res.statusCode;
-      gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
-
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-
-      res.on('end', () => {
-        try {
-          const response = JSON.parse(data);
-          gauge.dataStore.scenarioStore.put('videoResponse', response);
-          console.log(`Received response with status ${statusCode}`);
-          resolve({ statusCode, data: response });
-        } catch (error) {
-          reject(new Error(`Failed to parse response: ${error.message}`));
-        }
-      });
-    }).on('error', (error) => {
-      reject(new Error(`HTTP request failed: ${error.message}`));
-    });
+  const url = new URL(path, restServerAddress);
+  Object.entries(queryParams).forEach(([key, value]) => {
+    url.searchParams.append(key, value);
   });
+
+  console.log(`Making request to: ${url.toString()}`);
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers
+  });
+
+  const statusCode = response.status;
+  gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
+
+  const data = await response.json();
+  gauge.dataStore.scenarioStore.put('videoResponse', data);
+  console.log(`Received response with status ${statusCode}`);
+  
+  return { statusCode, data };
 }
 
 // Connect to the server
@@ -231,46 +211,26 @@ step('Close the connection', async function () {
 // Request video via REST API
 step('Request video via REST with id <videoId> and parts <parts>', async function (videoId, parts) {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  return new Promise((resolve, reject) => {
-    if (!restServerAddress) {
-      reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
-      return;
-    }
+  if (!restServerAddress) {
+    throw new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.');
+  }
 
-    const url = new URL('/youtube/v3/videos', restServerAddress);
-    url.searchParams.append('id', videoId);
-    url.searchParams.append('part', parts);
+  const url = new URL('/youtube/v3/videos', restServerAddress);
+  url.searchParams.append('id', videoId);
+  url.searchParams.append('part', parts);
+  
+  console.log(`Requesting video from: ${url.toString()}`);
 
-    const protocol = url.protocol === 'https:' ? https : http;
-    
-    console.log(`Requesting video from: ${url.toString()}`);
+  const response = await fetch(url.toString());
+  const statusCode = response.status;
+  gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
 
-    protocol.get(url.toString(), (res) => {
-      let data = '';
-      const statusCode = res.statusCode;
-      gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
-
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-
-      res.on('end', () => {
-        try {
-          const videoResponse = JSON.parse(data);
-          gauge.dataStore.scenarioStore.put('videoResponse', videoResponse);
-          console.log(`Received video response with status ${statusCode}`);
-          if (videoResponse.items) {
-            console.log(`Response has ${videoResponse.items.length} items`);
-          }
-          resolve();
-        } catch (error) {
-          reject(new Error(`Failed to parse response: ${error.message}`));
-        }
-      });
-    }).on('error', (error) => {
-      reject(new Error(`HTTP request failed: ${error.message}`));
-    });
-  });
+  const videoResponse = await response.json();
+  gauge.dataStore.scenarioStore.put('videoResponse', videoResponse);
+  console.log(`Received video response with status ${statusCode}`);
+  if (videoResponse.items) {
+    console.log(`Response has ${videoResponse.items.length} items`);
+  }
 });
 
 // Verify response kind
@@ -400,83 +360,43 @@ step('Verify activeLiveChatId can be used with live chat service', async functio
 // Request video via REST API without id parameter
 step('Request video via REST without id parameter', async function () {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  return new Promise((resolve, reject) => {
-    if (!restServerAddress) {
-      reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
-      return;
-    }
+  if (!restServerAddress) {
+    throw new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.');
+  }
 
-    const url = new URL('/youtube/v3/videos', restServerAddress);
-    url.searchParams.append('part', 'liveStreamingDetails');
+  const url = new URL('/youtube/v3/videos', restServerAddress);
+  url.searchParams.append('part', 'liveStreamingDetails');
+  
+  console.log(`Requesting video from: ${url.toString()}`);
 
-    const protocol = url.protocol === 'https:' ? https : http;
-    
-    console.log(`Requesting video from: ${url.toString()}`);
+  const response = await fetch(url.toString());
+  const statusCode = response.status;
+  gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
 
-    protocol.get(url.toString(), (res) => {
-      let data = '';
-      const statusCode = res.statusCode;
-      gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
-
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-
-      res.on('end', () => {
-        try {
-          const videoResponse = JSON.parse(data);
-          gauge.dataStore.scenarioStore.put('videoResponse', videoResponse);
-          console.log(`Received error response with status ${statusCode}`);
-          resolve();
-        } catch (error) {
-          reject(new Error(`Failed to parse response: ${error.message}`));
-        }
-      });
-    }).on('error', (error) => {
-      reject(new Error(`HTTP request failed: ${error.message}`));
-    });
-  });
+  const videoResponse = await response.json();
+  gauge.dataStore.scenarioStore.put('videoResponse', videoResponse);
+  console.log(`Received error response with status ${statusCode}`);
 });
 
 // Request video via REST API without part parameter
 step('Request video via REST without part parameter', async function () {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  return new Promise((resolve, reject) => {
-    if (!restServerAddress) {
-      reject(new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.'));
-      return;
-    }
+  if (!restServerAddress) {
+    throw new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.');
+  }
 
-    const url = new URL('/youtube/v3/videos', restServerAddress);
-    url.searchParams.append('id', 'test-video-1');
+  const url = new URL('/youtube/v3/videos', restServerAddress);
+  url.searchParams.append('id', 'test-video-1');
+  
+  console.log(`Requesting video from: ${url.toString()}`);
 
-    const protocol = url.protocol === 'https:' ? https : http;
-    
-    console.log(`Requesting video from: ${url.toString()}`);
+  const response = await fetch(url.toString());
+  const statusCode = response.status;
+  gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
 
-    protocol.get(url.toString(), (res) => {
-      let data = '';
-      const statusCode = res.statusCode;
-      gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
-
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-
-      res.on('end', () => {
-        try {
-          const videoResponse = JSON.parse(data);
-          gauge.dataStore.scenarioStore.put('videoResponse', videoResponse);
-          console.log(`Received error response with status ${statusCode}`);
-          resolve();
-        } catch (error) {
-          reject(new Error(`Failed to parse response: ${error.message}`));
-        }
-      });
-    }).on('error', (error) => {
-      reject(new Error(`HTTP request failed: ${error.message}`));
-    });
-  });
+  const videoResponse = await response.json();
+  gauge.dataStore.scenarioStore.put('videoResponse', videoResponse);
+  console.log(`Received error response with status ${statusCode}`);
 });
 
 // Verify response status code
@@ -711,4 +631,146 @@ step('Verify stream starts successfully', async function () {
   // This step is just a marker - the actual verification happens in the previous step
   // If we reach here, it means the stream started successfully
   console.log('Verified stream started successfully with authentication');
+});
+
+// Control Endpoints Steps
+
+// Helper function to make HTTP POST requests to the control API
+async function makeControlRequest(restServerAddress, path, body) {
+  if (!restServerAddress) {
+    throw new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.');
+  }
+
+  const url = new URL(path, restServerAddress);
+  
+  console.log(`Making POST request to: ${url.toString()}`);
+  console.log(`Request body: ${JSON.stringify(body)}`);
+
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+
+  const statusCode = response.status;
+  gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
+
+  const data = await response.json();
+  gauge.dataStore.scenarioStore.put('controlResponse', data);
+  console.log(`Received response with status ${statusCode}`);
+  console.log(`Response: ${JSON.stringify(data)}`);
+  
+  return { statusCode, data };
+}
+
+// Create video via control endpoint
+step('Create video via control endpoint with id <videoId> and liveChatId <liveChatId>', async function (videoId, liveChatId) {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  const requestBody = {
+    id: videoId,
+    channelId: 'test-channel',
+    title: 'Test Video',
+    description: 'A test video created via control endpoint',
+    channelTitle: 'Test Channel',
+    publishedAt: '2024-01-01T00:00:00Z',
+    liveChatId: liveChatId,
+    actualStartTime: '2024-01-01T00:00:00Z',
+    concurrentViewers: 100
+  };
+
+  await makeControlRequest(restServerAddress, '/control/videos', requestBody);
+  console.log(`Created video with id: ${videoId}`);
+});
+
+// Create chat message via control endpoint
+step('Create chat message via control endpoint with id <messageId> and liveChatId <liveChatId>', async function (messageId, liveChatId) {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  const requestBody = {
+    id: messageId,
+    liveChatId: liveChatId,
+    authorChannelId: 'test-author',
+    authorDisplayName: 'Test Author',
+    messageText: 'Test message from control endpoint',
+    publishedAt: '2024-01-01T00:00:00Z',
+    isVerified: true
+  };
+
+  await makeControlRequest(restServerAddress, '/control/chat_messages', requestBody);
+  console.log(`Created chat message with id: ${messageId}`);
+});
+
+// Verify control response success
+step('Verify control response success is <expectedSuccess>', async function (expectedSuccess) {
+  const controlResponse = gauge.dataStore.scenarioStore.get('controlResponse');
+  assert.ok(controlResponse, 'No control response received');
+  
+  const expectedBool = expectedSuccess === 'true';
+  assert.strictEqual(
+    controlResponse.success,
+    expectedBool,
+    `Control response success is '${controlResponse.success}' but expected '${expectedBool}'`
+  );
+  console.log(`Verified control response success: ${expectedBool}`);
+});
+
+// Verify control response message contains text
+step('Verify control response message contains <text>', async function (text) {
+  const controlResponse = gauge.dataStore.scenarioStore.get('controlResponse');
+  assert.ok(controlResponse, 'No control response received');
+  assert.ok(controlResponse.message, 'No message in control response');
+  
+  assert.ok(
+    controlResponse.message.includes(text),
+    `Control response message '${controlResponse.message}' does not contain '${text}'`
+  );
+  console.log(`Verified control response message contains: ${text}`);
+});
+
+// Verify message with specific id exists in stream
+step('Verify message with id <messageId> exists in stream', async function (messageId) {
+  const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
+  
+  let messageFound = false;
+  for (const message of receivedMessages) {
+    const items = message.getItemsList();
+    for (const item of items) {
+      if (item.getId() === messageId) {
+        messageFound = true;
+        console.log(`Found message with id: ${messageId}`);
+        break;
+      }
+    }
+    if (messageFound) break;
+  }
+  
+  assert.ok(
+    messageFound,
+    `Message with id '${messageId}' not found in stream. Received ${receivedMessages.length} message(s).`
+  );
+  console.log(`Verified message with id '${messageId}' exists in stream`);
+});
+
+// Verify message with specific id does not exist in stream
+step('Verify message with id <messageId> does not exist in stream', async function (messageId) {
+  const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
+  
+  let messageFound = false;
+  for (const message of receivedMessages) {
+    const items = message.getItemsList();
+    for (const item of items) {
+      if (item.getId() === messageId) {
+        messageFound = true;
+        break;
+      }
+    }
+    if (messageFound) break;
+  }
+  
+  assert.ok(
+    !messageFound,
+    `Message with id '${messageId}' should not exist in stream but was found.`
+  );
+  console.log(`Verified message with id '${messageId}' does not exist in stream`);
 });

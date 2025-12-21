@@ -1,3 +1,4 @@
+use axum::Router;
 use live_chat_service::{create_service, proto::FILE_DESCRIPTOR_SET};
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -90,7 +91,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_v1()?;
 
     // Create REST service for videos API with shared datastore
-    let rest_app = video_service::create_router(Arc::clone(&repo));
+    let video_router = video_service::create_router(Arc::clone(&repo));
+
+    // Create control service for managing videos and chat messages
+    let control_router = control_service::create_router(Arc::clone(&repo));
+
+    // Nest routers under their respective paths to avoid conflicts
+    let rest_app = Router::new()
+        .nest("/youtube/v3", video_router)
+        .nest("/control", control_router);
 
     println!("gRPC server (live chat) listening on {}", grpc_addr);
     println!("REST server (videos API) listening on {}", rest_addr);

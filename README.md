@@ -120,6 +120,47 @@ Stream live chat messages using the Live Chat ID obtained from the videos.list e
 - Follows YouTube's live chat message format
 - Compatible with gRPC clients
 
+### Control Endpoints (REST)
+
+The server provides control endpoints for dynamically creating videos and chat messages during testing:
+
+**Create a new video:**
+```bash
+curl -X POST http://localhost:8080/control/videos \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "my-video-id",
+    "channelId": "my-channel-id",
+    "title": "My Video Title",
+    "description": "My video description",
+    "channelTitle": "My Channel",
+    "publishedAt": "2024-01-01T00:00:00Z",
+    "liveChatId": "my-chat-id",
+    "actualStartTime": "2024-01-01T00:00:00Z",
+    "concurrentViewers": 100
+  }'
+```
+
+**Create a new chat message:**
+```bash
+curl -X POST http://localhost:8080/control/chat_messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "my-message-id",
+    "liveChatId": "my-chat-id",
+    "authorChannelId": "author-channel-id",
+    "authorDisplayName": "Author Name",
+    "messageText": "Hello world!",
+    "publishedAt": "2024-01-01T00:00:00Z",
+    "isVerified": true
+  }'
+```
+
+These endpoints are useful for:
+- Setting up test scenarios with custom data
+- Creating videos and messages on-demand during integration tests
+- Simulating different chat configurations without modifying server code
+
 ### Testing
 
 Scenario tests are available in the `tests/` directory using Gauge with JavaScript.
