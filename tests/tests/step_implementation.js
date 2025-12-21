@@ -727,3 +727,50 @@ step('Verify control response message contains <text>', async function (text) {
   );
   console.log(`Verified control response message contains: ${text}`);
 });
+
+// Verify message with specific id exists in stream
+step('Verify message with id <messageId> exists in stream', async function (messageId) {
+  const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
+  
+  let messageFound = false;
+  for (const message of receivedMessages) {
+    const items = message.getItemsList();
+    for (const item of items) {
+      if (item.getId() === messageId) {
+        messageFound = true;
+        console.log(`Found message with id: ${messageId}`);
+        break;
+      }
+    }
+    if (messageFound) break;
+  }
+  
+  assert.ok(
+    messageFound,
+    `Message with id '${messageId}' not found in stream. Received ${receivedMessages.length} message(s).`
+  );
+  console.log(`Verified message with id '${messageId}' exists in stream`);
+});
+
+// Verify message with specific id does not exist in stream
+step('Verify message with id <messageId> does not exist in stream', async function (messageId) {
+  const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
+  
+  let messageFound = false;
+  for (const message of receivedMessages) {
+    const items = message.getItemsList();
+    for (const item of items) {
+      if (item.getId() === messageId) {
+        messageFound = true;
+        break;
+      }
+    }
+    if (messageFound) break;
+  }
+  
+  assert.ok(
+    !messageFound,
+    `Message with id '${messageId}' should not exist in stream but was found.`
+  );
+  console.log(`Verified message with id '${messageId}' does not exist in stream`);
+});

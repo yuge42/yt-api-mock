@@ -19,7 +19,25 @@ This specification tests the control endpoints for creating videos and chat mess
 
 ## Test creating a new chat message via control endpoint
 
-* Create chat message via control endpoint with id "control-msg-1" and liveChatId "control-chat-1"
+* gRPC server address from environment variable "GRPC_SERVER_ADDRESS" or default "localhost:50051"
+* Create video via control endpoint with id "control-test-video-2" and liveChatId "control-chat-2"
+* Create chat message via control endpoint with id "control-msg-1" and liveChatId "control-chat-2"
 * Verify control response success is "true"
 * Verify control response message contains "created successfully"
+* Connect to the server
+* Send StreamList request with live chat id "control-chat-2" and parts "snippet,authorDetails"
+* Receive stream of messages
+* Verify received "1" messages
+* Verify message with id "control-msg-1" exists in stream
+* Close the connection
+
+## Test chat messages are isolated by LiveChatId
+
+* gRPC server address from environment variable "GRPC_SERVER_ADDRESS" or default "localhost:50051"
+* Create video via control endpoint with id "control-test-video-3" and liveChatId "control-chat-3"
+* Create chat message via control endpoint with id "control-msg-isolated" and liveChatId "control-chat-3"
+* Connect to the server
+* Send StreamList request with live chat id "control-chat-2" and parts "snippet,authorDetails"
+* Receive stream of messages
+* Verify message with id "control-msg-isolated" does not exist in stream
 * Close the connection
