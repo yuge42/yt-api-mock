@@ -69,21 +69,13 @@ impl V3DataLiveChatMessageService for LiveChatService {
                 match BASE64.decode(&token) {
                     Ok(decoded) => {
                         let decoded_str = String::from_utf8(decoded)
-                            .map_err(|_| Status::invalid_argument("Invalid page_token: not valid UTF-8"))?;
+                            .map_err(|_| Status::invalid_argument("Invalid page_token"))?;
                         
-                        // First check if it's a valid integer (including negative check)
-                        let parsed_int = decoded_str.parse::<i64>()
-                            .map_err(|_| Status::invalid_argument("Invalid page_token: not a valid integer"))?;
-                        
-                        // Reject negative indices
-                        if parsed_int < 0 {
-                            return Err(Status::invalid_argument("Invalid page_token: index cannot be negative"));
-                        }
-                        
-                        // Convert to usize safely
-                        parsed_int as usize
+                        // Parse directly to usize
+                        decoded_str.parse::<usize>()
+                            .map_err(|_| Status::invalid_argument("Invalid page_token"))?
                     }
-                    Err(_) => return Err(Status::invalid_argument("Invalid page_token: not valid base64")),
+                    Err(_) => return Err(Status::invalid_argument("Invalid page_token")),
                 }
             }
             _ => 0, // Start from the beginning if no page_token
