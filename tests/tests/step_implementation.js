@@ -774,3 +774,175 @@ step('Verify message with id <messageId> does not exist in stream', async functi
   );
   console.log(`Verified message with id '${messageId}' does not exist in stream`);
 });
+
+// Pagination Tests
+
+// Verify each message has next_page_token except the last one
+step('Verify each message has next_page_token except the last one', async function () {
+  const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
+  assert.ok(receivedMessages.length > 0, 'No messages received');
+  
+  receivedMessages.forEach((message, index) => {
+    const nextPageToken = message.getNextPageToken();
+    const isLastMessage = (index === receivedMessages.length - 1);
+    
+    if (isLastMessage) {
+      // Last message should NOT have a next_page_token (or it should be empty)
+      assert.ok(
+        !nextPageToken || nextPageToken === '',
+        `Last message (index ${index}) should not have next_page_token but has: ${nextPageToken}`
+      );
+      console.log(`Verified last message has no next_page_token`);
+    } else {
+      // All other messages should have a next_page_token
+      assert.ok(
+        nextPageToken && nextPageToken !== '',
+        `Message ${index} should have next_page_token but it's empty or missing`
+      );
+      console.log(`Message ${index} has next_page_token: ${nextPageToken}`);
+    }
+  });
+  console.log('Verified pagination tokens are correct');
+});
+
+// Receive first message and extract page_token
+step('Receive first message and extract page_token', async function () {
+  const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
+  return new Promise((resolve, reject) => {
+    let firstMessage = null;
+    let streamEnded = false;
+    let errorOccurred = false;
+
+    streamCall.on('data', (response) => {
+      if (!firstMessage) {
+        console.log(`Received first message: ${response.getEtag()}`);
+        firstMessage = response;
+        const nextPageToken = response.getNextPageToken();
+        console.log(`Extracted next_page_token: ${nextPageToken}`);
+        gauge.dataStore.scenarioStore.put('extractedPageToken', nextPageToken);
+        // Cancel the stream after receiving the first message
+        streamCall.cancel();
+      }
+    });
+
+    streamCall.on('end', () => {
+      console.log('Stream ended');
+      streamEnded = true;
+      if (!errorOccurred && firstMessage) {
+        resolve();
+      }
+    });
+
+    streamCall.on('error', (error) => {
+      console.log(`Stream error: ${error.message}`);
+      errorOccurred = true;
+      // If we've received the first message and got a CANCELLED error, that's expected
+      if (firstMessage && error.code === grpc.status.CANCELLED) {
+        resolve();
+      } else if (!firstMessage) {
+        reject(new Error(`Stream error before receiving first message: ${error.message}`));
+      }
+    });
+
+    // Set a timeout
+    setTimeout(() => {
+      if (!streamEnded && !firstMessage) {
+        streamCall.cancel();
+        reject(new Error('Timeout waiting for first message'));
+      } else if (!streamEnded && firstMessage) {
+        resolve();
+      }
+    }, 5000);
+  });
+});
+
+// Send StreamList request with extracted page_token
+step('Send StreamList request with extracted page_token', async function () {
+  const client = gauge.dataStore.scenarioStore.get('client');
+  const pageToken = gauge.dataStore.scenarioStore.get('extractedPageToken');
+  
+  assert.ok(pageToken, 'No page_token was extracted from previous request');
+  console.log(`Using extracted page_token: ${pageToken}`);
+  
+  const request = new messages.LiveChatMessageListRequest();
+  request.setLiveChatId('test-chat-id');
+  request.setPartList(['snippet', 'authorDetails']);
+  request.setPageToken(pageToken);
+
+  const streamCall = client.streamList(request);
+  gauge.dataStore.scenarioStore.put('streamCall', streamCall);
+  console.log(`Sent StreamList request with page_token: ${pageToken}`);
+});
+
+// Receive remaining messages
+step('Receive remaining messages', async function () {
+  const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
+  return new Promise((resolve, reject) => {
+    const receivedMessages = [];
+    let streamEnded = false;
+    let errorOccurred = false;
+
+    streamCall.on('data', (response) => {
+      console.log(`Received message: ${response.getEtag()}`);
+      receivedMessages.push(response);
+    });
+
+    streamCall.on('end', () => {
+      console.log('Stream ended normally');
+      streamEnded = true;
+      if (!errorOccurred) {
+        gauge.dataStore.scenarioStore.put('remainingMessages', receivedMessages);
+        resolve();
+      }
+    });
+
+    streamCall.on('error', (error) => {
+      console.log(`Stream error: ${error.message}`);
+      errorOccurred = true;
+      // If we've received messages, don't treat this as a failure
+      if (receivedMessages.length > 0 || error.code === grpc.status.CANCELLED) {
+        gauge.dataStore.scenarioStore.put('remainingMessages', receivedMessages);
+        resolve();
+      } else {
+        reject(new Error(`Stream error: ${error.message}`));
+      }
+    });
+
+    // Set a timeout to end the stream collection
+    setTimeout(() => {
+      if (!streamEnded && !errorOccurred) {
+        streamCall.cancel();
+      }
+      // Give a small delay for the cancel to propagate
+      setTimeout(() => {
+        if (!streamEnded && receivedMessages.length > 0) {
+          gauge.dataStore.scenarioStore.put('remainingMessages', receivedMessages);
+          resolve();
+        } else if (!streamEnded && receivedMessages.length === 0) {
+          reject(new Error('No messages received'));
+        }
+      }, 100);
+    }, 10000);
+  });
+});
+
+// Verify messages start from second message
+step('Verify messages start from second message', async function () {
+  const remainingMessages = gauge.dataStore.scenarioStore.get('remainingMessages') || [];
+  assert.ok(remainingMessages.length > 0, 'No remaining messages received');
+  
+  // The first item in remainingMessages should be the second message from the original stream
+  // Check that the message IDs are correct (should start from test-msg-id-1 instead of test-msg-id-0)
+  const firstItem = remainingMessages[0].getItemsList()[0];
+  const messageId = firstItem.getId();
+  
+  // Should not be the first message (test-msg-id-0)
+  assert.notStrictEqual(
+    messageId,
+    'test-msg-id-0',
+    'First message in paginated results should not be test-msg-id-0'
+  );
+  
+  console.log(`Verified pagination: first message in continuation is ${messageId}`);
+  console.log(`Received ${remainingMessages.length} message(s) in continuation`);
+});
