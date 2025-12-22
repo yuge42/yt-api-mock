@@ -232,7 +232,20 @@ step('Send StreamList request with parts <parts>', async function (parts) {
   const partsList = parts.split(',').map(p => p.trim());
   request.setPartList(partsList);
 
-  const streamCall = client.streamList(request);
+  // Create stream call and immediately attach error listener
+  const streamCall = await new Promise((resolve, reject) => {
+    const stream = client.streamList(request);
+    
+    // Attach error listener immediately to catch any immediate errors
+    stream.on('error', (error) => {
+      // Store error but don't reject - let collectStreamMessages handle it
+      console.log(`Stream creation error caught: ${error.message}`);
+    });
+    
+    // Give it a moment to potentially error out, then resolve
+    setImmediate(() => resolve(stream));
+  });
+  
   gauge.dataStore.scenarioStore.put('streamCall', streamCall);
   console.log(`Sent StreamList request for stored chat ID: ${liveChatId} with parts: ${partsList.join(', ')}`);
 });
@@ -890,7 +903,20 @@ step('Send StreamList request with page_token <tokenValue>', async function (tok
   request.setPageToken(pageToken);
   console.log(`Created page_token from value '${tokenValue}': ${pageToken}`);
 
-  const streamCall = client.streamList(request);
+  // Create stream call and immediately attach error listener
+  const streamCall = await new Promise((resolve, reject) => {
+    const stream = client.streamList(request);
+    
+    // Attach error listener immediately to catch any immediate errors
+    stream.on('error', (error) => {
+      // Store error but don't reject - let collectStreamMessages handle it
+      console.log(`Stream creation error caught: ${error.message}`);
+    });
+    
+    // Give it a moment to potentially error out, then resolve
+    setImmediate(() => resolve(stream));
+  });
+  
   gauge.dataStore.scenarioStore.put('streamCall', streamCall);
   console.log(`Sent StreamList request with page_token: ${pageToken}`);
 });
