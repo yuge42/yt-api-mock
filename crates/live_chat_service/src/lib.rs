@@ -10,17 +10,19 @@ use proto::v3_data_live_chat_message_service_server::{
 };
 use proto::{LiveChatMessageListRequest, LiveChatMessageListResponse};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status};
 
 pub struct LiveChatService {
     repo: Arc<dyn datastore::Repository>,
+    stream_timeout: Option<Duration>,
 }
 
 impl LiveChatService {
-    pub fn new(repo: Arc<dyn datastore::Repository>) -> Self {
-        Self { repo }
+    pub fn new(repo: Arc<dyn datastore::Repository>, stream_timeout: Option<Duration>) -> Self {
+        Self { repo, stream_timeout }
     }
 }
 
@@ -82,65 +84,103 @@ impl V3DataLiveChatMessageService for LiveChatService {
             _ => 0, // Start from the beginning if no page_token
         };
 
-        // Get chat messages from the datastore filtered by live_chat_id
-        let messages = self.repo.get_chat_messages(&live_chat_id);
-
-        // Note: If start_index is beyond the current message range, the stream will be empty.
-        // This is intentional behavior to allow clients to resume from a future position
-        // when new messages are added.
+        // Clone necessary data for the spawned task
+        let repo = Arc::clone(&self.repo);
+        let stream_timeout = self.stream_timeout;
 
         tokio::spawn(async move {
-            for (i, msg) in messages.iter().enumerate().skip(start_index) {
-                let snippet = proto::LiveChatMessageSnippet {
-                    r#type: Some(
-                        proto::live_chat_message_snippet::type_wrapper::Type::TextMessageEvent
-                            as i32,
-                    ),
-                    live_chat_id: Some(msg.live_chat_id.clone()),
-                    author_channel_id: Some(msg.author_channel_id.clone()),
-                    published_at: Some(msg.published_at.clone()),
-                    display_message: Some(msg.message_text.clone()),
-                    displayed_content: Some(
-                        proto::live_chat_message_snippet::DisplayedContent::TextMessageDetails(
-                            proto::LiveChatTextMessageDetails {
-                                message_text: Some(msg.message_text.clone()),
-                            },
+            let mut current_index = start_index;
+            let stream_start = tokio::time::Instant::now();
+            
+            loop {
+                // Get chat messages from the datastore filtered by live_chat_id
+                let messages = repo.get_chat_messages(&live_chat_id);
+                
+                // Send messages starting from current_index
+                let mut sent_any = false;
+                for (i, msg) in messages.iter().enumerate().skip(current_index) {
+                    let snippet = proto::LiveChatMessageSnippet {
+                        r#type: Some(
+                            proto::live_chat_message_snippet::type_wrapper::Type::TextMessageEvent
+                                as i32,
                         ),
-                    ),
-                    ..Default::default()
-                };
+                        live_chat_id: Some(msg.live_chat_id.clone()),
+                        author_channel_id: Some(msg.author_channel_id.clone()),
+                        published_at: Some(msg.published_at.clone()),
+                        display_message: Some(msg.message_text.clone()),
+                        displayed_content: Some(
+                            proto::live_chat_message_snippet::DisplayedContent::TextMessageDetails(
+                                proto::LiveChatTextMessageDetails {
+                                    message_text: Some(msg.message_text.clone()),
+                                },
+                            ),
+                        ),
+                        ..Default::default()
+                    };
 
-                let author_details = proto::LiveChatMessageAuthorDetails {
-                    display_name: Some(msg.author_display_name.clone()),
-                    channel_id: Some(msg.author_channel_id.clone()),
-                    is_verified: Some(msg.is_verified),
-                    ..Default::default()
-                };
+                    let author_details = proto::LiveChatMessageAuthorDetails {
+                        display_name: Some(msg.author_display_name.clone()),
+                        channel_id: Some(msg.author_channel_id.clone()),
+                        is_verified: Some(msg.is_verified),
+                        ..Default::default()
+                    };
 
-                let item = proto::LiveChatMessage {
-                    kind: Some("youtube#liveChatMessage".to_string()),
-                    etag: Some(format!("etag-{}", i)),
-                    id: Some(msg.id.clone()),
-                    snippet: Some(snippet),
-                    author_details: Some(author_details),
-                };
+                    let item = proto::LiveChatMessage {
+                        kind: Some("youtube#liveChatMessage".to_string()),
+                        etag: Some(format!("etag-{}", i)),
+                        id: Some(msg.id.clone()),
+                        snippet: Some(snippet),
+                        author_details: Some(author_details),
+                    };
 
-                // Always generate next_page_token to allow resuming the stream later
-                // even if no more messages exist currently (they may be added later)
-                let next_index = (i + 1).to_string();
-                let next_page_token = Some(BASE64.encode(next_index.as_bytes()));
+                    // Always generate next_page_token to allow resuming the stream later
+                    // even if no more messages exist currently (they may be added later)
+                    let next_index = (i + 1).to_string();
+                    let next_page_token = Some(BASE64.encode(next_index.as_bytes()));
 
-                let response = LiveChatMessageListResponse {
-                    kind: Some("youtube#liveChatMessageListResponse".to_string()),
-                    etag: Some(format!("etag-{}", i)),
-                    items: vec![item],
-                    next_page_token,
-                    ..Default::default()
-                };
-                if (tx.send(Ok(response)).await).is_err() {
-                    break;
+                    let response = LiveChatMessageListResponse {
+                        kind: Some("youtube#liveChatMessageListResponse".to_string()),
+                        etag: Some(format!("etag-{}", i)),
+                        items: vec![item],
+                        next_page_token,
+                        ..Default::default()
+                    };
+                    
+                    if (tx.send(Ok(response)).await).is_err() {
+                        return; // Client disconnected
+                    }
+                    
+                    current_index = i + 1;
+                    sent_any = true;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                 }
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                
+                // If no timeout is configured (None), keep the connection alive indefinitely
+                // and poll for new messages
+                if stream_timeout.is_none() {
+                    // Wait before polling again for new messages
+                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                    // Continue to next iteration to check for new messages
+                    continue;
+                }
+                
+                // If timeout is configured, check if we should disconnect
+                if let Some(timeout) = stream_timeout {
+                    if stream_start.elapsed() >= timeout {
+                        // Timeout reached, close the stream
+                        break;
+                    }
+                    
+                    // If we sent messages, continue polling for more
+                    // Otherwise, wait a bit before checking again
+                    if !sent_any {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                    }
+                    continue;
+                }
+                
+                // This should not be reached, but break as a safety measure
+                break;
             }
         });
 
@@ -151,6 +191,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
 // Public function to create the server
 pub fn create_service(
     repo: Arc<dyn datastore::Repository>,
+    stream_timeout: Option<Duration>,
 ) -> V3DataLiveChatMessageServiceServer<LiveChatService> {
-    V3DataLiveChatMessageServiceServer::new(LiveChatService::new(repo))
+    V3DataLiveChatMessageServiceServer::new(LiveChatService::new(repo, stream_timeout))
 }

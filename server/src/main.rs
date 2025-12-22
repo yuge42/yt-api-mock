@@ -1,5 +1,4 @@
 use axum::Router;
-use live_chat_service::{create_service, proto::FILE_DESCRIPTOR_SET};
 use std::sync::Arc;
 use std::time::SystemTime;
 use tonic::transport::Server as GrpcServer;
@@ -68,6 +67,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rest_bind_address =
         std::env::var("REST_BIND_ADDRESS").unwrap_or_else(|_| "[::1]:8080".to_string());
 
+    // Parse CHAT_STREAM_TIMEOUT environment variable
+    // If not set or set to 0, the connection will be kept alive indefinitely
+    // Otherwise, it should be a number of seconds
+    let stream_timeout = std::env::var("CHAT_STREAM_TIMEOUT")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .filter(|&timeout| timeout > 0)
+        .map(std::time::Duration::from_secs);
+
     let grpc_addr: std::net::SocketAddr = grpc_bind_address.parse().map_err(|e| {
         format!(
             "Failed to parse GRPC_BIND_ADDRESS '{}': {}",
@@ -85,9 +93,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let repo: Arc<dyn datastore::Repository> = Arc::new(datastore::InMemoryRepository::new());
 
     // Create gRPC service for live chat with shared datastore
-    let grpc_service = create_service(Arc::clone(&repo));
+    let grpc_service = live_chat_service::create_service(Arc::clone(&repo), stream_timeout);
     let reflection_service = tonic_reflection::server::Builder::configure()
-        .register_encoded_file_descriptor_set(FILE_DESCRIPTOR_SET)
+        .register_encoded_file_descriptor_set(live_chat_service::proto::FILE_DESCRIPTOR_SET)
         .build_v1()?;
 
     // Create REST service for videos API with shared datastore

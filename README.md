@@ -56,6 +56,17 @@ When authentication is enabled:
 
 Note: The server only checks for the presence of these credentials, not their validity.
 
+**Chat Stream Timeout:**
+
+By default, the chat stream connection is kept alive indefinitely and will push new messages to clients as they are added. You can configure a timeout using the `CHAT_STREAM_TIMEOUT` environment variable (in seconds):
+
+```bash
+CHAT_STREAM_TIMEOUT=30 cargo run -p server
+```
+
+- If not set or set to `0`, the connection will be kept alive indefinitely and new messages will be pushed to the client as they arrive
+- If set to a positive number, the connection will be closed after the specified number of seconds
+
 ### Verification
 
 You can verify the server using `curl` for REST endpoints and `grpcurl` for gRPC endpoints.
