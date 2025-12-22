@@ -880,8 +880,9 @@ step('Verify first remaining message has ID <expectedId>', async function (expec
 // Send StreamList request with page_token for a specific value
 step('Send StreamList request with page_token <tokenValue>', async function (tokenValue) {
   const client = gauge.dataStore.scenarioStore.get('client');
+  const liveChatId = gauge.dataStore.scenarioStore.get('liveChatId') || 'test-chat-id';
   const request = new messages.LiveChatMessageListRequest();
-  request.setLiveChatId('test-chat-id');
+  request.setLiveChatId(liveChatId);
   request.setPartList(['snippet', 'authorDetails']);
   
   // Create page token by base64 encoding the provided value

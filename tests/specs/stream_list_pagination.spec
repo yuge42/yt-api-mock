@@ -45,6 +45,8 @@ This specification tests the pagination functionality in the YouTube Live Chat s
 
 ### Test negative index rejection
 * Connect to the server
+* Use live chat ID "edge-case-test-chat"
+* Create video with ID "edge-case-test-video" and live chat ID "edge-case-test-chat"
 * Send StreamList request with page_token "-5"
 * Receive stream of messages with timeout "3000" ms
 * Verify stream returned error
@@ -53,6 +55,7 @@ This specification tests the pagination functionality in the YouTube Live Chat s
 
 ### Test non-numeric token rejection
 * Connect to the server
+* Use live chat ID "edge-case-test-chat"
 * Send StreamList request with page_token "abc"
 * Receive stream of messages with timeout "3000" ms
 * Verify stream returned error
@@ -61,6 +64,7 @@ This specification tests the pagination functionality in the YouTube Live Chat s
 
 ### Test index beyond range
 * Connect to the server
+* Use live chat ID "edge-case-test-chat"
 * Send StreamList request with page_token "100"
 * Receive stream of messages with timeout "3000" ms
 * Verify stream has no messages
