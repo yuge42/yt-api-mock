@@ -19,19 +19,18 @@ This specification tests the pagination functionality in the YouTube Live Chat s
 
 ## Test pagination with page_token
 
-Expected message IDs in order:
-
-|index|messageId      |
-|-----|---------------|
-|0    |test-msg-id-0  |
-|1    |test-msg-id-1  |
-|2    |test-msg-id-2  |
-|3    |test-msg-id-3  |
-|4    |test-msg-id-4  |
-
 * Use live chat ID "pagination-test-chat"
 * Create video with ID "pagination-test-video" and live chat ID "pagination-test-chat"
-* Create chat messages from table <table:tests/specs/pagination_messages.csv>
+* Create chat messages from table
+
+    |index|messageId      |
+    |-----|---------------|
+    |0    |test-msg-id-0  |
+    |1    |test-msg-id-1  |
+    |2    |test-msg-id-2  |
+    |3    |test-msg-id-3  |
+    |4    |test-msg-id-4  |
+
 * Connect to the server
 * Send StreamList request with parts "snippet,authorDetails"
 * Receive first message and extract page_token

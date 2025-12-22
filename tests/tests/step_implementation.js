@@ -138,7 +138,7 @@ step('Create video with ID <videoId> and live chat ID <liveChatId>', async funct
 });
 
 // Create chat messages from table
-step('Create chat messages from table <table>', async function (table) {
+step('Create chat messages from table', async function (table) {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
   if (!restServerAddress) {
     throw new Error('REST server address not set');
