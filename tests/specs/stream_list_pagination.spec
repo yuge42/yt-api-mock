@@ -6,6 +6,7 @@ This specification tests the pagination functionality in the YouTube Live Chat s
 **Prerequisites**: The mock server must be running before executing this test.
 
 * gRPC server address from environment variable "GRPC_SERVER_ADDRESS" or default "localhost:50051"
+* REST server address from environment variable "REST_SERVER_ADDRESS" or default "localhost:8080"
 
 ## Test streaming with pagination support
 
@@ -28,8 +29,11 @@ Expected message IDs in order:
 |3    |test-msg-id-3  |
 |4    |test-msg-id-4  |
 
+* Use live chat ID "pagination-test-chat"
+* Create video with ID "pagination-test-video" and live chat ID "pagination-test-chat"
+* Create chat messages from table <table:tests/specs/pagination_messages.csv>
 * Connect to the server
-* Send StreamList request with live chat id "test-chat-id" and parts "snippet,authorDetails"
+* Send StreamList request with parts "snippet,authorDetails"
 * Receive first message and extract page_token
 * Close the connection
 * Connect to the server

@@ -100,6 +100,94 @@ async function makeRestRequest(restServerAddress, path, queryParams = {}, header
   return { statusCode, data };
 }
 
+// Create a video via control API
+step('Create video with ID <videoId> and live chat ID <liveChatId>', async function (videoId, liveChatId) {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  if (!restServerAddress) {
+    throw new Error('REST server address not set');
+  }
+
+  const url = new URL('/control/videos', restServerAddress);
+  const videoData = {
+    id: videoId,
+    channelId: 'test-channel-1',
+    title: 'Test Live Stream for Pagination',
+    description: 'Testing pagination functionality',
+    channelTitle: 'Test Channel',
+    publishedAt: '2023-01-01T00:00:00Z',
+    liveChatId: liveChatId,
+    actualStartTime: '2023-01-01T00:00:00Z',
+    actualEndTime: null,
+    scheduledStartTime: '2023-01-01T00:00:00Z',
+    scheduledEndTime: null,
+    concurrentViewers: 100
+  };
+
+  console.log(`Creating video: ${videoId} with live chat ID: ${liveChatId}`);
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(videoData)
+  });
+
+  const result = await response.json();
+  if (response.status !== 201) {
+    throw new Error(`Failed to create video: ${result.error || result.message}`);
+  }
+  console.log(`Video created successfully: ${result.message}`);
+});
+
+// Create chat messages from table
+step('Create chat messages from table <table>', async function (table) {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  if (!restServerAddress) {
+    throw new Error('REST server address not set');
+  }
+
+  const url = new URL('/control/chat_messages', restServerAddress);
+  
+  // Get the live chat ID from the scenario store (set by previous video creation)
+  // For now, we'll use a consistent ID from the spec
+  const liveChatId = gauge.dataStore.scenarioStore.get('liveChatId') || 'pagination-test-chat';
+  
+  console.log(`Creating ${table.getRowCount()} chat messages for chat ID: ${liveChatId}`);
+  
+  for (let i = 0; i < table.getRowCount(); i++) {
+    const row = table.getTableRows()[i];
+    const index = row.getCell('index');
+    const messageId = row.getCell('messageId');
+    
+    const messageData = {
+      id: messageId,
+      liveChatId: liveChatId,
+      authorChannelId: `test-author-${index}`,
+      authorDisplayName: `Test User ${index}`,
+      messageText: `Test message number ${index}`,
+      publishedAt: '2023-01-01T00:00:00Z',
+      isVerified: true
+    };
+
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(messageData)
+    });
+
+    const result = await response.json();
+    if (response.status !== 201) {
+      throw new Error(`Failed to create message ${messageId}: ${result.error || result.message}`);
+    }
+  }
+  
+  console.log(`Successfully created ${table.getRowCount()} chat messages`);
+});
+
+// Store live chat ID for use in subsequent steps
+step('Use live chat ID <liveChatId>', async function (liveChatId) {
+  gauge.dataStore.scenarioStore.put('liveChatId', liveChatId);
+  console.log(`Stored live chat ID: ${liveChatId}`);
+});
+
 // Connect to the server
 step('Connect to the server', async function () {
   const grpcServerAddress = gauge.dataStore.specStore.get('grpcServerAddress');
@@ -126,6 +214,26 @@ step('Send StreamList request with live chat id <liveChatId> and parts <parts>',
   const streamCall = client.streamList(request);
   gauge.dataStore.scenarioStore.put('streamCall', streamCall);
   console.log(`Sent StreamList request for chat ID: ${liveChatId} with parts: ${partsList.join(', ')}`);
+});
+
+// Send StreamList request with stored live chat ID
+step('Send StreamList request with parts <parts>', async function (parts) {
+  const client = gauge.dataStore.scenarioStore.get('client');
+  const liveChatId = gauge.dataStore.scenarioStore.get('liveChatId');
+  
+  if (!liveChatId) {
+    throw new Error('No live chat ID stored. Use "Use live chat ID" step first.');
+  }
+  
+  const request = new messages.LiveChatMessageListRequest();
+  request.setLiveChatId(liveChatId);
+  
+  const partsList = parts.split(',').map(p => p.trim());
+  request.setPartList(partsList);
+
+  const streamCall = client.streamList(request);
+  gauge.dataStore.scenarioStore.put('streamCall', streamCall);
+  console.log(`Sent StreamList request for stored chat ID: ${liveChatId} with parts: ${partsList.join(', ')}`);
 });
 
 // Receive stream of messages
