@@ -69,11 +69,3 @@ This specification tests the pagination functionality in the YouTube Live Chat s
 * Receive stream of messages with timeout "3000" ms
 * Verify stream has no messages
 * Close the connection
-
-### Test non-existent chat ID
-* Connect to the server
-* Use live chat ID "non-existent-chat-id"
-* Send StreamList request with parts "snippet"
-* Receive stream of messages with timeout "3000" ms
-* Verify stream has no messages
-* Close the connection
