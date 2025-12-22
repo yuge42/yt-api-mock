@@ -42,7 +42,10 @@ impl InMemoryRepository {
     /// Populate the repository with initial dummy data
     fn populate_dummy_data(&self) {
         // Fixed point in time for consistent dummy data
-        let fixed_time = Utc.with_ymd_and_hms(2023, 1, 1, 0, 0, 0).unwrap();
+        let fixed_time = Utc
+            .with_ymd_and_hms(2023, 1, 1, 0, 0, 0)
+            .single()
+            .expect("Fixed datetime should be valid");
         
         // Add dummy videos
         let video1 = Video {
