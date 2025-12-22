@@ -14,62 +14,61 @@ const { Buffer } = require('buffer');
 // ============================================================================
 
 /**
- * Create a stream call with immediate error listener attachment
- * This ensures errors are caught even before collectStreamMessages is called
+ * Set up a stream with all event listeners attached immediately
+ * This function creates the stream and attaches data, end, and error listeners
+ * Messages and errors are collected as they arrive
  * @param {function} streamCallFactory - Function that creates the stream (e.g., () => client.streamList(request))
- * @returns {Promise<object>} The stream call with error listener attached
+ * @returns {object} Object with stream, receivedMessages array, and error storage
  */
-function createStreamWithErrorListener(streamCallFactory) {
-  return new Promise((resolve) => {
-    const stream = streamCallFactory();
-    
-    // Attach error listener immediately to catch any immediate errors
-    stream.on('error', (error) => {
-      // Log but don't reject - let collectStreamMessages handle the error
-      console.log(`Stream creation error caught: ${error.message}`);
-    });
-    
-    // Resolve on next tick to ensure error handler is in place
-    setImmediate(() => resolve(stream));
+function setupStreamWithListeners(streamCallFactory) {
+  const stream = streamCallFactory();
+  const receivedMessages = [];
+  let streamError = null;
+  let streamEnded = false;
+  
+  // Attach all event listeners immediately
+  stream.on('data', (response) => {
+    console.log(`Received message: ${response.getEtag()}`);
+    receivedMessages.push(response);
   });
+  
+  stream.on('end', () => {
+    console.log('Stream ended normally');
+    streamEnded = true;
+  });
+  
+  stream.on('error', (error) => {
+    console.log(`Stream error: ${error.message}, code: ${error.code}`);
+    streamError = error;
+  });
+  
+  return {
+    stream,
+    receivedMessages,
+    get error() { return streamError; },
+    get ended() { return streamEnded; }
+  };
 }
 
 /**
- * Collect messages from a stream with timeout
- * This is the main stream collection function that handles all cases
- * @param {object} streamCall - The gRPC stream call
+ * Await stream completion with timeout
+ * This function only manages the timeout and retrieves already-collected data
+ * @param {object} streamData - Object returned from setupStreamWithListeners
  * @param {number} timeout - Timeout in milliseconds
  * @returns {Promise<object>} Object with messages array and error (if any)
  */
-function collectStreamMessages(streamCall, timeout = 10000) {
+function awaitStreamCompletion(streamData, timeout = 10000) {
   return new Promise((resolve) => {
-    const receivedMessages = [];
-    let streamEnded = false;
-    let streamError = null;
-
-    streamCall.on('data', (response) => {
-      console.log(`Received message: ${response.getEtag()}`);
-      receivedMessages.push(response);
-    });
-
-    streamCall.on('end', () => {
-      console.log('Stream ended normally');
-      streamEnded = true;
-      resolve({ messages: receivedMessages, error: streamError });
-    });
-
-    streamCall.on('error', (error) => {
-      console.log(`Stream error: ${error.message}, code: ${error.code}`);
-      streamError = error;
-      // Don't resolve here, wait for timeout or end
-    });
-
     setTimeout(() => {
-      if (!streamEnded) {
-        streamCall.cancel();
+      if (!streamData.ended) {
+        streamData.stream.cancel();
       }
+      // Give a brief delay for final events to process
       setTimeout(() => {
-        resolve({ messages: receivedMessages, error: streamError });
+        resolve({
+          messages: streamData.receivedMessages,
+          error: streamData.error
+        });
       }, 100);
     }, timeout);
   });
@@ -233,8 +232,8 @@ step('Send StreamList request with live chat id <liveChatId> and parts <parts>',
   const partsList = parts.split(',').map(p => p.trim());
   request.setPartList(partsList);
 
-  const streamCall = client.streamList(request);
-  gauge.dataStore.scenarioStore.put('streamCall', streamCall);
+  const streamData = setupStreamWithListeners(() => client.streamList(request));
+  gauge.dataStore.scenarioStore.put('streamData', streamData);
   console.log(`Sent StreamList request for chat ID: ${liveChatId} with parts: ${partsList.join(', ')}`);
 });
 
@@ -253,26 +252,26 @@ step('Send StreamList request with parts <parts>', async function (parts) {
   const partsList = parts.split(',').map(p => p.trim());
   request.setPartList(partsList);
 
-  // Create stream call with immediate error listener
-  const streamCall = await createStreamWithErrorListener(() => client.streamList(request));
+  // Set up stream with all listeners attached immediately
+  const streamData = setupStreamWithListeners(() => client.streamList(request));
   
-  gauge.dataStore.scenarioStore.put('streamCall', streamCall);
+  gauge.dataStore.scenarioStore.put('streamData', streamData);
   console.log(`Sent StreamList request for stored chat ID: ${liveChatId} with parts: ${partsList.join(', ')}`);
 });
 
 // Receive stream of messages
 step('Receive stream of messages', async function () {
-  const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
-  const result = await collectStreamMessages(streamCall);
+  const streamData = gauge.dataStore.scenarioStore.get('streamData');
+  const result = await awaitStreamCompletion(streamData);
   gauge.dataStore.scenarioStore.put('receivedMessages', result.messages);
   gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
 
 // Receive stream of messages with timeout
 step('Receive stream of messages with timeout <timeoutMs> ms', async function (timeoutMs) {
-  const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
+  const streamData = gauge.dataStore.scenarioStore.get('streamData');
   const timeout = parseInt(timeoutMs, 10);
-  const result = await collectStreamMessages(streamCall, timeout);
+  const result = await awaitStreamCompletion(streamData, timeout);
   gauge.dataStore.scenarioStore.put('receivedMessages', result.messages);
   gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
@@ -340,12 +339,12 @@ step('Verify each message has author details', async function () {
 
 // Close the connection
 step('Close the connection', async function () {
-  const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
+  const streamData = gauge.dataStore.scenarioStore.get('streamData');
   const client = gauge.dataStore.scenarioStore.get('client');
   
-  if (streamCall) {
-    streamCall.cancel();
-    gauge.dataStore.scenarioStore.put('streamCall', null);
+  if (streamData && streamData.stream) {
+    streamData.stream.cancel();
+    gauge.dataStore.scenarioStore.put('streamData', null);
   }
   if (client) {
     client.close();
@@ -466,8 +465,8 @@ step('Verify activeLiveChatId can be used with live chat service', async functio
   request.setLiveChatId(chatIdFromVideo);
   request.setPartList(['snippet', 'authorDetails']);
 
-  const stream = client.streamList(request);
-  const result = await collectStreamMessages(stream, 3000);
+  const streamData = setupStreamWithListeners(() => client.streamList(request));
+  const result = await awaitStreamCompletion(streamData, 3000);
   
   // Verify we received at least one message
   assert.ok(
@@ -600,8 +599,8 @@ step('Send StreamList request without authentication', async function () {
   request.setLiveChatId('live-chat-id-1');
   request.setPartList(['snippet', 'authorDetails']);
 
-  const streamCall = client.streamList(request);
-  const result = await collectStreamMessages(streamCall, 3000);
+  const streamData = setupStreamWithListeners(() => client.streamList(request));
+  const result = await awaitStreamCompletion(streamData, 3000);
   gauge.dataStore.scenarioStore.put('receivedMessages', result.messages);
   gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
@@ -616,8 +615,8 @@ step('Send StreamList request with API key metadata', async function () {
   const metadata = new grpc.Metadata();
   metadata.add('x-goog-api-key', 'test-api-key-123');
 
-  const streamCall = client.streamList(request, metadata);
-  const result = await collectStreamMessages(streamCall, 3000);
+  const streamData = setupStreamWithListeners(() => client.streamList(request, metadata));
+  const result = await awaitStreamCompletion(streamData, 3000);
   gauge.dataStore.scenarioStore.put('receivedMessages', result.messages);
   gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
@@ -632,8 +631,8 @@ step('Send StreamList request with authorization metadata', async function () {
   const metadata = new grpc.Metadata();
   metadata.add('authorization', 'Bearer test-oauth-token');
 
-  const streamCall = client.streamList(request, metadata);
-  const result = await collectStreamMessages(streamCall, 3000);
+  const streamData = setupStreamWithListeners(() => client.streamList(request, metadata));
+  const result = await awaitStreamCompletion(streamData, 3000);
   gauge.dataStore.scenarioStore.put('receivedMessages', result.messages);
   gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
@@ -842,8 +841,8 @@ step('Verify each message has next_page_token', async function () {
 
 // Receive first message and extract page_token
 step('Receive first message and extract page_token', async function () {
-  const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
-  const result = await collectStreamMessages(streamCall, 5000);
+  const streamData = gauge.dataStore.scenarioStore.get('streamData');
+  const result = await awaitStreamCompletion(streamData, 5000);
   
   assert.ok(result.messages.length > 0, 'No messages received');
   const firstMessage = result.messages[0];
@@ -865,15 +864,15 @@ step('Send StreamList request with extracted page_token', async function () {
   request.setPartList(['snippet', 'authorDetails']);
   request.setPageToken(pageToken);
 
-  const streamCall = client.streamList(request);
-  gauge.dataStore.scenarioStore.put('streamCall', streamCall);
+  const streamData = setupStreamWithListeners(() => client.streamList(request));
+  gauge.dataStore.scenarioStore.put('streamData', streamData);
   console.log(`Sent StreamList request with page_token: ${pageToken}`);
 });
 
 // Receive remaining messages
 step('Receive remaining messages', async function () {
-  const streamCall = gauge.dataStore.scenarioStore.get('streamCall');
-  const result = await collectStreamMessages(streamCall);
+  const streamData = gauge.dataStore.scenarioStore.get('streamData');
+  const result = await awaitStreamCompletion(streamData);
   gauge.dataStore.scenarioStore.put('remainingMessages', result.messages);
   gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
@@ -913,10 +912,10 @@ step('Send StreamList request with page_token <tokenValue>', async function (tok
   request.setPageToken(pageToken);
   console.log(`Created page_token from value '${tokenValue}': ${pageToken}`);
 
-  // Create stream call with immediate error listener
-  const streamCall = await createStreamWithErrorListener(() => client.streamList(request));
+  // Set up stream with all listeners attached immediately
+  const streamData = setupStreamWithListeners(() => client.streamList(request));
   
-  gauge.dataStore.scenarioStore.put('streamCall', streamCall);
+  gauge.dataStore.scenarioStore.put('streamData', streamData);
   console.log(`Sent StreamList request with page_token: ${pageToken}`);
 });
 
