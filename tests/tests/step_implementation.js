@@ -10,8 +10,44 @@ const fetch = require('node-fetch');
 const { Buffer } = require('buffer');
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+// ISO8601 datetime regex pattern
+const ISO8601_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+
+// Maximum allowed time difference for "recent" datetime validation (in minutes)
+const MAX_RECENT_DATETIME_DIFF_MINUTES = 5;
+
+// ============================================================================
 // Helper Functions for Common Stream Patterns
 // ============================================================================
+
+/**
+ * Validate that a datetime string is ISO8601 format and recent
+ * @param {string} publishedAt - The datetime string to validate
+ * @param {string} fieldName - Name of the field being validated (for error messages)
+ */
+function validateRecentISO8601DateTime(publishedAt, fieldName = 'publishedAt') {
+  // Verify it's a valid ISO8601 datetime string
+  assert.ok(
+    ISO8601_REGEX.test(publishedAt),
+    `${fieldName} '${publishedAt}' is not a valid ISO8601 datetime`
+  );
+  
+  // Verify it's a recent datetime (within MAX_RECENT_DATETIME_DIFF_MINUTES) since it should be current time
+  const publishedDate = new Date(publishedAt);
+  const now = new Date();
+  const diffMs = Math.abs(now - publishedDate);
+  const diffMinutes = diffMs / (1000 * 60);
+  
+  assert.ok(
+    diffMinutes < MAX_RECENT_DATETIME_DIFF_MINUTES,
+    `${fieldName} '${publishedAt}' is not recent (diff: ${diffMinutes.toFixed(2)} minutes, max allowed: ${MAX_RECENT_DATETIME_DIFF_MINUTES} minutes)`
+  );
+  
+  return publishedAt;
+}
 
 /**
  * Set up a stream with all event listeners attached immediately
@@ -789,24 +825,8 @@ step('Verify video has valid publishedAt datetime', async function () {
   assert.ok(snippet, 'Video does not have snippet');
   assert.ok(snippet.publishedAt, 'Video snippet does not have publishedAt');
   
-  // Verify it's a valid ISO8601 datetime string
   const publishedAt = snippet.publishedAt;
-  const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
-  assert.ok(
-    dateRegex.test(publishedAt),
-    `publishedAt '${publishedAt}' is not a valid ISO8601 datetime`
-  );
-  
-  // Verify it's a recent datetime (within last 5 minutes) since it should be current time
-  const publishedDate = new Date(publishedAt);
-  const now = new Date();
-  const diffMs = Math.abs(now - publishedDate);
-  const diffMinutes = diffMs / (1000 * 60);
-  
-  assert.ok(
-    diffMinutes < 5,
-    `publishedAt '${publishedAt}' is not recent (diff: ${diffMinutes.toFixed(2)} minutes)`
-  );
+  validateRecentISO8601DateTime(publishedAt, 'publishedAt');
   
   console.log(`Verified video has valid publishedAt: ${publishedAt}`);
   gauge.dataStore.scenarioStore.put('videoPublishedAt', publishedAt);
@@ -829,23 +849,7 @@ step('Verify chat message has valid publishedAt datetime', async function () {
   const publishedAt = snippet.getPublishedAt();
   assert.ok(publishedAt, 'Message snippet does not have publishedAt');
   
-  // Verify it's a valid ISO8601 datetime string
-  const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
-  assert.ok(
-    dateRegex.test(publishedAt),
-    `publishedAt '${publishedAt}' is not a valid ISO8601 datetime`
-  );
-  
-  // Verify it's a recent datetime (within last 5 minutes) since it should be current time
-  const publishedDate = new Date(publishedAt);
-  const now = new Date();
-  const diffMs = Math.abs(now - publishedDate);
-  const diffMinutes = diffMs / (1000 * 60);
-  
-  assert.ok(
-    diffMinutes < 5,
-    `publishedAt '${publishedAt}' is not recent (diff: ${diffMinutes.toFixed(2)} minutes)`
-  );
+  validateRecentISO8601DateTime(publishedAt, 'publishedAt');
   
   console.log(`Verified chat message has valid publishedAt: ${publishedAt}`);
 });
