@@ -4,6 +4,7 @@ pub mod proto {
         tonic::include_file_descriptor_set!("live_chat_service_descriptor");
 }
 
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use proto::v3_data_live_chat_message_service_server::{
     V3DataLiveChatMessageService, V3DataLiveChatMessageServiceServer,
 };
@@ -55,17 +56,41 @@ impl V3DataLiveChatMessageService for LiveChatService {
 
         let (tx, rx) = mpsc::channel(4);
 
-        // Extract the live_chat_id from the request
-        let live_chat_id = request
-            .into_inner()
+        // Extract request parameters
+        let request_inner = request.into_inner();
+        let live_chat_id = request_inner
             .live_chat_id
             .ok_or_else(|| Status::invalid_argument("live_chat_id is required"))?;
+
+        // Parse page_token to determine starting index
+        let start_index = match request_inner.page_token {
+            Some(token) if !token.is_empty() => {
+                // Decode the page token (simple base64 encoding of the index)
+                match BASE64.decode(&token) {
+                    Ok(decoded) => {
+                        let decoded_str = String::from_utf8(decoded)
+                            .map_err(|_| Status::invalid_argument("Invalid page_token"))?;
+
+                        // Parse directly to usize
+                        decoded_str
+                            .parse::<usize>()
+                            .map_err(|_| Status::invalid_argument("Invalid page_token"))?
+                    }
+                    Err(_) => return Err(Status::invalid_argument("Invalid page_token")),
+                }
+            }
+            _ => 0, // Start from the beginning if no page_token
+        };
 
         // Get chat messages from the datastore filtered by live_chat_id
         let messages = self.repo.get_chat_messages(&live_chat_id);
 
+        // Note: If start_index is beyond the current message range, the stream will be empty.
+        // This is intentional behavior to allow clients to resume from a future position
+        // when new messages are added.
+
         tokio::spawn(async move {
-            for (i, msg) in messages.iter().enumerate() {
+            for (i, msg) in messages.iter().enumerate().skip(start_index) {
                 let snippet = proto::LiveChatMessageSnippet {
                     r#type: Some(
                         proto::live_chat_message_snippet::type_wrapper::Type::TextMessageEvent
@@ -100,10 +125,16 @@ impl V3DataLiveChatMessageService for LiveChatService {
                     author_details: Some(author_details),
                 };
 
+                // Always generate next_page_token to allow resuming the stream later
+                // even if no more messages exist currently (they may be added later)
+                let next_index = (i + 1).to_string();
+                let next_page_token = Some(BASE64.encode(next_index.as_bytes()));
+
                 let response = LiveChatMessageListResponse {
                     kind: Some("youtube#liveChatMessageListResponse".to_string()),
                     etag: Some(format!("etag-{}", i)),
                     items: vec![item],
+                    next_page_token,
                     ..Default::default()
                 };
                 if (tx.send(Ok(response)).await).is_err() {
