@@ -1,3 +1,4 @@
+use chrono::{TimeZone, Utc};
 use domain::{LiveChatMessage, Video};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -40,6 +41,9 @@ impl InMemoryRepository {
 
     /// Populate the repository with initial dummy data
     fn populate_dummy_data(&self) {
+        // Fixed point in time for consistent dummy data
+        let fixed_time = Utc.with_ymd_and_hms(2023, 1, 1, 0, 0, 0).unwrap();
+        
         // Add dummy videos
         let video1 = Video {
             id: "test-video-1".to_string(),
@@ -47,11 +51,11 @@ impl InMemoryRepository {
             title: "Mock Live Stream Video".to_string(),
             description: "This is a mock video for testing the YouTube Data API".to_string(),
             channel_title: "Mock Channel".to_string(),
-            published_at: "2023-01-01T00:00:00Z".to_string(),
+            published_at: fixed_time,
             live_chat_id: Some("live-chat-id-1".to_string()),
-            actual_start_time: Some("2023-01-01T00:00:00Z".to_string()),
+            actual_start_time: Some(fixed_time),
             actual_end_time: None,
-            scheduled_start_time: Some("2023-01-01T00:00:00Z".to_string()),
+            scheduled_start_time: Some(fixed_time),
             scheduled_end_time: None,
             concurrent_viewers: Some(42),
         };
@@ -66,7 +70,7 @@ impl InMemoryRepository {
                 author_channel_id: format!("channel-id-{}", i),
                 author_display_name: format!("User {}", i),
                 message_text: format!("Hello world {}", i),
-                published_at: "2023-01-01T00:00:00Z".to_string(),
+                published_at: fixed_time,
                 is_verified: true,
             };
             self.add_chat_message(message);
@@ -80,7 +84,7 @@ impl InMemoryRepository {
                 author_channel_id: format!("test-channel-id-{}", i),
                 author_display_name: format!("Test User {}", i),
                 message_text: format!("Test message {}", i),
-                published_at: "2023-01-01T00:00:00Z".to_string(),
+                published_at: fixed_time,
                 is_verified: true,
             };
             self.add_chat_message(message);

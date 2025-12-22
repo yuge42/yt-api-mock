@@ -1,4 +1,5 @@
 use axum::{Json, Router, extract::State, http::StatusCode, response::IntoResponse, routing::post};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -11,12 +12,17 @@ pub struct CreateVideoRequest {
     pub title: String,
     pub description: String,
     pub channel_title: String,
-    pub published_at: String,
+    #[serde(default = "default_datetime")]
+    pub published_at: DateTime<Utc>,
     pub live_chat_id: Option<String>,
-    pub actual_start_time: Option<String>,
-    pub actual_end_time: Option<String>,
-    pub scheduled_start_time: Option<String>,
-    pub scheduled_end_time: Option<String>,
+    #[serde(default)]
+    pub actual_start_time: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub actual_end_time: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub scheduled_start_time: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub scheduled_end_time: Option<DateTime<Utc>>,
     pub concurrent_viewers: Option<u64>,
 }
 
@@ -29,7 +35,8 @@ pub struct CreateChatMessageRequest {
     pub author_channel_id: String,
     pub author_display_name: String,
     pub message_text: String,
-    pub published_at: String,
+    #[serde(default = "default_datetime")]
+    pub published_at: DateTime<Utc>,
     pub is_verified: bool,
 }
 
@@ -45,6 +52,11 @@ pub struct CreateResponse {
 pub struct ErrorResponse {
     pub success: bool,
     pub error: String,
+}
+
+/// Default to current datetime
+fn default_datetime() -> DateTime<Utc> {
+    Utc::now()
 }
 
 /// Handler for creating a new video

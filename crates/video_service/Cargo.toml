@@ -9,3 +9,4 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 datastore = { path = "../datastore" }
+chrono = { version = "0.4", features = ["serde"] }

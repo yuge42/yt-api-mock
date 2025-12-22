@@ -111,7 +111,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
                         ),
                         live_chat_id: Some(msg.live_chat_id.clone()),
                         author_channel_id: Some(msg.author_channel_id.clone()),
-                        published_at: Some(msg.published_at.clone()),
+                        published_at: Some(msg.published_at.to_rfc3339()),
                         display_message: Some(msg.message_text.clone()),
                         displayed_content: Some(
                             proto::live_chat_message_snippet::DisplayedContent::TextMessageDetails(
