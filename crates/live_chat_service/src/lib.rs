@@ -15,6 +15,9 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status};
 
+// Polling interval for checking new messages
+const POLLING_INTERVAL_SECS: u64 = 1;
+
 pub struct LiveChatService {
     repo: Arc<dyn datastore::Repository>,
     stream_timeout: Option<Duration>,
@@ -152,35 +155,21 @@ impl V3DataLiveChatMessageService for LiveChatService {
                     
                     current_index = i + 1;
                     sent_any = true;
-                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(POLLING_INTERVAL_SECS)).await;
                 }
                 
-                // If no timeout is configured (None), keep the connection alive indefinitely
-                // and poll for new messages
-                if stream_timeout.is_none() {
-                    // Wait before polling again for new messages
-                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                    // Continue to next iteration to check for new messages
-                    continue;
-                }
-                
-                // If timeout is configured, check if we should disconnect
+                // Check if timeout has been reached
                 if let Some(timeout) = stream_timeout {
                     if stream_start.elapsed() >= timeout {
-                        // Timeout reached, close the stream
-                        break;
+                        break; // Timeout reached, close the stream
                     }
-                    
-                    // If we sent messages, continue polling for more
-                    // Otherwise, wait a bit before checking again
-                    if !sent_any {
-                        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                    }
-                    continue;
                 }
                 
-                // This should not be reached, but break as a safety measure
-                break;
+                // If no timeout is configured or timeout not reached yet, keep polling for new messages
+                // Wait before polling again
+                if !sent_any {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(POLLING_INTERVAL_SECS)).await;
+                }
             }
         });
 
