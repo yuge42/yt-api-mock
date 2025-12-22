@@ -7,6 +7,7 @@ const services = require('../proto-gen/stream_list_grpc_pb');
 const assert = require('assert');
 const { URL } = require('url');
 const fetch = require('node-fetch');
+const { Buffer } = require('buffer');
 
 // ============================================================================
 // Helper Functions for Common Stream Patterns
