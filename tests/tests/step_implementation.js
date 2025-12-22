@@ -746,24 +746,23 @@ step('Receive remaining messages', async function () {
   gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
 
-// Verify messages start from second message
-step('Verify messages start from second message', async function () {
+// Verify first remaining message has specific ID
+step('Verify first remaining message has ID <expectedId>', async function (expectedId) {
   const remainingMessages = gauge.dataStore.scenarioStore.get('remainingMessages') || [];
   assert.ok(remainingMessages.length > 0, 'No remaining messages received');
   
-  // The first item in remainingMessages should be the second message from the original stream
-  // Check that the message IDs are correct (should start from test-msg-id-1 instead of test-msg-id-0)
+  // Get the first message from the remaining messages
   const firstItem = remainingMessages[0].getItemsList()[0];
-  const messageId = firstItem.getId();
+  const actualMessageId = firstItem.getId();
   
-  // Should not be the first message (test-msg-id-0)
-  assert.notStrictEqual(
-    messageId,
-    'test-msg-id-0',
-    'First message in paginated results should not be test-msg-id-0'
+  // Verify it matches the expected ID from the spec
+  assert.strictEqual(
+    actualMessageId,
+    expectedId,
+    `Expected first remaining message to have ID '${expectedId}' but got '${actualMessageId}'`
   );
   
-  console.log(`Verified pagination: first message in continuation is ${messageId}`);
+  console.log(`Verified first remaining message has ID: ${actualMessageId}`);
   console.log(`Received ${remainingMessages.length} message(s) in continuation`);
 });
 
