@@ -153,7 +153,8 @@ impl V3DataLiveChatMessageService for LiveChatService {
                     }
                     
                     current_index = i + 1;
-                    tokio::time::sleep(tokio::time::Duration::from_secs(POLLING_INTERVAL_SECS)).await;
+                    // Yield to the scheduler to allow other tasks to run
+                    tokio::task::yield_now().await;
                 }
                 
                 // Check if timeout has been reached
