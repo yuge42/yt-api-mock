@@ -167,6 +167,28 @@ curl -X POST http://localhost:8080/control/chat_messages \
   }'
 ```
 
+**DateTime Handling:**
+
+All datetime fields (`publishedAt`, `actualStartTime`, `actualEndTime`, `scheduledStartTime`, `scheduledEndTime`) must be in ISO8601 format (e.g., `2024-01-01T00:00:00Z`). 
+
+- If `publishedAt` is omitted when creating a video or chat message, it defaults to the current datetime.
+- Optional datetime fields (`actualStartTime`, `actualEndTime`, etc.) can be omitted or set to `null`.
+- Invalid datetime formats will result in a deserialization error.
+
+Example with default datetime:
+```bash
+curl -X POST http://localhost:8080/control/videos \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "my-video-id",
+    "channelId": "my-channel-id",
+    "title": "My Video Title",
+    "description": "My video description",
+    "channelTitle": "My Channel",
+    "liveChatId": "my-chat-id"
+  }'
+```
+
 These endpoints are useful for:
 - Setting up test scenarios with custom data
 - Creating videos and messages on-demand during integration tests
