@@ -4,11 +4,11 @@ pub mod proto {
         tonic::include_file_descriptor_set!("live_chat_service_descriptor");
 }
 
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use proto::v3_data_live_chat_message_service_server::{
     V3DataLiveChatMessageService, V3DataLiveChatMessageServiceServer,
 };
 use proto::{LiveChatMessageListRequest, LiveChatMessageListResponse};
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
@@ -61,7 +61,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
         let live_chat_id = request_inner
             .live_chat_id
             .ok_or_else(|| Status::invalid_argument("live_chat_id is required"))?;
-        
+
         // Parse page_token to determine starting index
         let start_index = match request_inner.page_token {
             Some(token) if !token.is_empty() => {
@@ -70,9 +70,10 @@ impl V3DataLiveChatMessageService for LiveChatService {
                     Ok(decoded) => {
                         let decoded_str = String::from_utf8(decoded)
                             .map_err(|_| Status::invalid_argument("Invalid page_token"))?;
-                        
+
                         // Parse directly to usize
-                        decoded_str.parse::<usize>()
+                        decoded_str
+                            .parse::<usize>()
                             .map_err(|_| Status::invalid_argument("Invalid page_token"))?
                     }
                     Err(_) => return Err(Status::invalid_argument("Invalid page_token")),
@@ -83,7 +84,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
 
         // Get chat messages from the datastore filtered by live_chat_id
         let messages = self.repo.get_chat_messages(&live_chat_id);
-        
+
         // Note: If start_index is beyond the current message range, the stream will be empty.
         // This is intentional behavior to allow clients to resume from a future position
         // when new messages are added.
