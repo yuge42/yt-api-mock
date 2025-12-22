@@ -100,7 +100,6 @@ impl V3DataLiveChatMessageService for LiveChatService {
                 let messages = repo.get_chat_messages(&live_chat_id);
                 
                 // Send messages starting from current_index
-                let mut sent_any = false;
                 for (i, msg) in messages.iter().enumerate().skip(current_index) {
                     let snippet = proto::LiveChatMessageSnippet {
                         r#type: Some(
@@ -154,7 +153,6 @@ impl V3DataLiveChatMessageService for LiveChatService {
                     }
                     
                     current_index = i + 1;
-                    sent_any = true;
                     tokio::time::sleep(tokio::time::Duration::from_secs(POLLING_INTERVAL_SECS)).await;
                 }
                 
@@ -166,10 +164,8 @@ impl V3DataLiveChatMessageService for LiveChatService {
                 }
                 
                 // If no timeout is configured or timeout not reached yet, keep polling for new messages
-                // Wait before polling again
-                if !sent_any {
-                    tokio::time::sleep(tokio::time::Duration::from_secs(POLLING_INTERVAL_SECS)).await;
-                }
+                // Wait before polling again to avoid busy loop
+                tokio::time::sleep(tokio::time::Duration::from_secs(POLLING_INTERVAL_SECS)).await;
             }
         });
 
