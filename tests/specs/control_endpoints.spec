@@ -50,6 +50,7 @@ This specification tests the control endpoints for creating videos and chat mess
 * Request video via REST with id "control-test-video-default-dt" and parts "snippet,liveStreamingDetails"
 * Verify response has "1" video items
 * Verify video has valid publishedAt datetime
+* Verify video publishedAt is within "5" minutes
 * Close the connection
 
 ## Test creating chat message without publishedAt uses default current datetime
@@ -65,4 +66,5 @@ This specification tests the control endpoints for creating videos and chat mess
 * Verify received "1" messages
 * Verify message with id "control-msg-default-dt" exists in stream
 * Verify chat message has valid publishedAt datetime
+* Verify chat message publishedAt is within "5" minutes
 * Close the connection
