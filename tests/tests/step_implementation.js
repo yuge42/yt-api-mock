@@ -744,6 +744,112 @@ step('Create chat message via control endpoint with id <messageId> and liveChatI
   console.log(`Created chat message with id: ${messageId}`);
 });
 
+// Create video via control endpoint without publishedAt (uses default current datetime)
+step('Create video via control endpoint without publishedAt with id <videoId> and liveChatId <liveChatId>', async function (videoId, liveChatId) {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  const requestBody = {
+    id: videoId,
+    channelId: 'test-channel',
+    title: 'Test Video with Default DateTime',
+    description: 'A test video created via control endpoint without publishedAt',
+    channelTitle: 'Test Channel',
+    liveChatId: liveChatId,
+    concurrentViewers: 100
+  };
+
+  await makeControlRequest(restServerAddress, '/control/videos', requestBody);
+  console.log(`Created video with id: ${videoId} without publishedAt (using default datetime)`);
+});
+
+// Create chat message via control endpoint without publishedAt (uses default current datetime)
+step('Create chat message via control endpoint without publishedAt with id <messageId> and liveChatId <liveChatId>', async function (messageId, liveChatId) {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  const requestBody = {
+    id: messageId,
+    liveChatId: liveChatId,
+    authorChannelId: 'test-author',
+    authorDisplayName: 'Test Author',
+    messageText: 'Test message from control endpoint without publishedAt',
+    isVerified: true
+  };
+
+  await makeControlRequest(restServerAddress, '/control/chat_messages', requestBody);
+  console.log(`Created chat message with id: ${messageId} without publishedAt (using default datetime)`);
+});
+
+// Verify that publishedAt exists and is a valid ISO8601 datetime
+step('Verify video has valid publishedAt datetime', async function () {
+  const videoResponse = gauge.dataStore.scenarioStore.get('videoResponse');
+  assert.ok(videoResponse, 'No video response received');
+  const items = videoResponse.items;
+  assert.ok(items.length > 0, 'No video items in response');
+  
+  const video = items[0];
+  const snippet = video.snippet;
+  assert.ok(snippet, 'Video does not have snippet');
+  assert.ok(snippet.publishedAt, 'Video snippet does not have publishedAt');
+  
+  // Verify it's a valid ISO8601 datetime string
+  const publishedAt = snippet.publishedAt;
+  const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+  assert.ok(
+    dateRegex.test(publishedAt),
+    `publishedAt '${publishedAt}' is not a valid ISO8601 datetime`
+  );
+  
+  // Verify it's a recent datetime (within last 5 minutes) since it should be current time
+  const publishedDate = new Date(publishedAt);
+  const now = new Date();
+  const diffMs = Math.abs(now - publishedDate);
+  const diffMinutes = diffMs / (1000 * 60);
+  
+  assert.ok(
+    diffMinutes < 5,
+    `publishedAt '${publishedAt}' is not recent (diff: ${diffMinutes.toFixed(2)} minutes)`
+  );
+  
+  console.log(`Verified video has valid publishedAt: ${publishedAt}`);
+  gauge.dataStore.scenarioStore.put('videoPublishedAt', publishedAt);
+});
+
+// Verify that published_at in chat message exists and is a valid ISO8601 datetime
+step('Verify chat message has valid publishedAt datetime', async function () {
+  const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
+  assert.ok(receivedMessages.length > 0, 'No messages received');
+  
+  // Get the first message
+  const firstMessage = receivedMessages[0];
+  const items = firstMessage.getItemsList();
+  assert.ok(items.length > 0, 'No items in message');
+  
+  const item = items[0];
+  const snippet = item.getSnippet();
+  assert.ok(snippet, 'Message does not have snippet');
+  
+  const publishedAt = snippet.getPublishedAt();
+  assert.ok(publishedAt, 'Message snippet does not have publishedAt');
+  
+  // Verify it's a valid ISO8601 datetime string
+  const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+  assert.ok(
+    dateRegex.test(publishedAt),
+    `publishedAt '${publishedAt}' is not a valid ISO8601 datetime`
+  );
+  
+  // Verify it's a recent datetime (within last 5 minutes) since it should be current time
+  const publishedDate = new Date(publishedAt);
+  const now = new Date();
+  const diffMs = Math.abs(now - publishedDate);
+  const diffMinutes = diffMs / (1000 * 60);
+  
+  assert.ok(
+    diffMinutes < 5,
+    `publishedAt '${publishedAt}' is not recent (diff: ${diffMinutes.toFixed(2)} minutes)`
+  );
+  
+  console.log(`Verified chat message has valid publishedAt: ${publishedAt}`);
+});
+
 // Verify control response success
 step('Verify control response success is <expectedSuccess>', async function (expectedSuccess) {
   const controlResponse = gauge.dataStore.scenarioStore.get('controlResponse');
