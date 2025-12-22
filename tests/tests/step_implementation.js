@@ -14,6 +14,27 @@ const { Buffer } = require('buffer');
 // ============================================================================
 
 /**
+ * Create a stream call with immediate error listener attachment
+ * This ensures errors are caught even before collectStreamMessages is called
+ * @param {function} streamCallFactory - Function that creates the stream (e.g., () => client.streamList(request))
+ * @returns {Promise<object>} The stream call with error listener attached
+ */
+function createStreamWithErrorListener(streamCallFactory) {
+  return new Promise((resolve) => {
+    const stream = streamCallFactory();
+    
+    // Attach error listener immediately to catch any immediate errors
+    stream.on('error', (error) => {
+      // Log but don't reject - let collectStreamMessages handle the error
+      console.log(`Stream creation error caught: ${error.message}`);
+    });
+    
+    // Resolve on next tick to ensure error handler is in place
+    setImmediate(() => resolve(stream));
+  });
+}
+
+/**
  * Collect messages from a stream with timeout
  * This is the main stream collection function that handles all cases
  * @param {object} streamCall - The gRPC stream call
@@ -232,19 +253,8 @@ step('Send StreamList request with parts <parts>', async function (parts) {
   const partsList = parts.split(',').map(p => p.trim());
   request.setPartList(partsList);
 
-  // Create stream call and immediately attach error listener
-  const streamCall = await new Promise((resolve, reject) => {
-    const stream = client.streamList(request);
-    
-    // Attach error listener immediately to catch any immediate errors
-    stream.on('error', (error) => {
-      // Store error but don't reject - let collectStreamMessages handle it
-      console.log(`Stream creation error caught: ${error.message}`);
-    });
-    
-    // Give it a moment to potentially error out, then resolve
-    setImmediate(() => resolve(stream));
-  });
+  // Create stream call with immediate error listener
+  const streamCall = await createStreamWithErrorListener(() => client.streamList(request));
   
   gauge.dataStore.scenarioStore.put('streamCall', streamCall);
   console.log(`Sent StreamList request for stored chat ID: ${liveChatId} with parts: ${partsList.join(', ')}`);
@@ -903,19 +913,8 @@ step('Send StreamList request with page_token <tokenValue>', async function (tok
   request.setPageToken(pageToken);
   console.log(`Created page_token from value '${tokenValue}': ${pageToken}`);
 
-  // Create stream call and immediately attach error listener
-  const streamCall = await new Promise((resolve, reject) => {
-    const stream = client.streamList(request);
-    
-    // Attach error listener immediately to catch any immediate errors
-    stream.on('error', (error) => {
-      // Store error but don't reject - let collectStreamMessages handle it
-      console.log(`Stream creation error caught: ${error.message}`);
-    });
-    
-    // Give it a moment to potentially error out, then resolve
-    setImmediate(() => resolve(stream));
-  });
+  // Create stream call with immediate error listener
+  const streamCall = await createStreamWithErrorListener(() => client.streamList(request));
   
   gauge.dataStore.scenarioStore.put('streamCall', streamCall);
   console.log(`Sent StreamList request with page_token: ${pageToken}`);
