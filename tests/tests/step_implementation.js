@@ -14,7 +14,8 @@ const { Buffer } = require('buffer');
 // ============================================================================
 
 // ISO8601 datetime regex pattern
-const ISO8601_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+// Accepts both 'Z' suffix and timezone offset format (e.g., +00:00, -05:00)
+const ISO8601_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 
 // ============================================================================
 // Helper Functions for Common Stream Patterns
@@ -26,7 +27,7 @@ const ISO8601_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
  * @param {string} fieldName - Name of the field being validated (for error messages)
  */
 function validateISO8601DateTime(datetimeValue, fieldName = 'publishedAt') {
-  // Verify it's a valid ISO8601 datetime string (with UTC Z suffix as returned by the server)
+  // Verify it's a valid ISO8601 datetime string (accepts both Z suffix and timezone offset)
   assert.ok(
     ISO8601_REGEX.test(datetimeValue),
     `${fieldName} '${datetimeValue}' is not a valid ISO8601 datetime`
