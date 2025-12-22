@@ -25,7 +25,10 @@ pub struct LiveChatService {
 
 impl LiveChatService {
     pub fn new(repo: Arc<dyn datastore::Repository>, stream_timeout: Option<Duration>) -> Self {
-        Self { repo, stream_timeout }
+        Self {
+            repo,
+            stream_timeout,
+        }
     }
 }
 
@@ -94,11 +97,11 @@ impl V3DataLiveChatMessageService for LiveChatService {
         tokio::spawn(async move {
             let mut current_index = start_index;
             let stream_start = tokio::time::Instant::now();
-            
+
             loop {
                 // Get chat messages from the datastore filtered by live_chat_id
                 let messages = repo.get_chat_messages(&live_chat_id);
-                
+
                 // Send messages starting from current_index
                 for (i, msg) in messages.iter().enumerate().skip(current_index) {
                     let snippet = proto::LiveChatMessageSnippet {
@@ -147,23 +150,23 @@ impl V3DataLiveChatMessageService for LiveChatService {
                         next_page_token,
                         ..Default::default()
                     };
-                    
+
                     if (tx.send(Ok(response)).await).is_err() {
                         return; // Client disconnected
                     }
-                    
+
                     current_index = i + 1;
                     // Yield to the scheduler to allow other tasks to run
                     tokio::task::yield_now().await;
                 }
-                
+
                 // Check if timeout has been reached
                 if let Some(timeout) = stream_timeout {
                     if stream_start.elapsed() >= timeout {
                         break; // Timeout reached, close the stream
                     }
                 }
-                
+
                 // If no timeout is configured or timeout not reached yet, keep polling for new messages
                 // Wait before polling again to avoid busy loop
                 tokio::time::sleep(tokio::time::Duration::from_secs(POLLING_INTERVAL_SECS)).await;
