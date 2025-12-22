@@ -25,28 +25,28 @@ const MAX_RECENT_DATETIME_DIFF_MINUTES = 5;
 
 /**
  * Validate that a datetime string is ISO8601 format and recent
- * @param {string} publishedAt - The datetime string to validate
+ * @param {string} datetimeValue - The datetime string to validate
  * @param {string} fieldName - Name of the field being validated (for error messages)
  */
-function validateRecentISO8601DateTime(publishedAt, fieldName = 'publishedAt') {
-  // Verify it's a valid ISO8601 datetime string
+function validateRecentISO8601DateTime(datetimeValue, fieldName = 'publishedAt') {
+  // Verify it's a valid ISO8601 datetime string (with UTC Z suffix as returned by the server)
   assert.ok(
-    ISO8601_REGEX.test(publishedAt),
-    `${fieldName} '${publishedAt}' is not a valid ISO8601 datetime`
+    ISO8601_REGEX.test(datetimeValue),
+    `${fieldName} '${datetimeValue}' is not a valid ISO8601 datetime`
   );
   
   // Verify it's a recent datetime (within MAX_RECENT_DATETIME_DIFF_MINUTES) since it should be current time
-  const publishedDate = new Date(publishedAt);
+  const parsedDate = new Date(datetimeValue);
   const now = new Date();
-  const diffMs = Math.abs(now - publishedDate);
+  const diffMs = Math.abs(now - parsedDate);
   const diffMinutes = diffMs / (1000 * 60);
   
   assert.ok(
     diffMinutes < MAX_RECENT_DATETIME_DIFF_MINUTES,
-    `${fieldName} '${publishedAt}' is not recent (diff: ${diffMinutes.toFixed(2)} minutes, max allowed: ${MAX_RECENT_DATETIME_DIFF_MINUTES} minutes)`
+    `${fieldName} '${datetimeValue}' is not recent (diff: ${diffMinutes.toFixed(2)} minutes, max allowed: ${MAX_RECENT_DATETIME_DIFF_MINUTES} minutes)`
   );
   
-  return publishedAt;
+  return datetimeValue;
 }
 
 /**
