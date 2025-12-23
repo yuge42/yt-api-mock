@@ -67,6 +67,45 @@ CHAT_STREAM_TIMEOUT=30 cargo run -p server
 - If not set or set to `0`, the connection will be kept alive indefinitely and new messages will be pushed to the client as they arrive
 - If set to a positive number, the connection will be closed after the specified number of seconds
 
+**TLS Support:**
+
+The server supports TLS encryption for both gRPC and REST endpoints. There are two ways to enable TLS:
+
+**Option 1: Native TLS Support (Server-side)**
+
+Configure TLS directly in the server by providing certificate and key file paths:
+
+```bash
+TLS_CERT_PATH=/path/to/cert.pem TLS_KEY_PATH=/path/to/key.pem cargo run -p server
+```
+
+Both environment variables must be set for TLS to be enabled. When TLS is enabled, the server will use HTTPS for REST endpoints and TLS for gRPC endpoints.
+
+**Option 2: Reverse Proxy with Docker Compose**
+
+Use nginx as a reverse proxy for TLS termination. This approach is recommended for production deployments.
+
+1. Generate self-signed certificates for development (not for production):
+   ```bash
+   ./nginx/generate-certs.sh
+   ```
+
+2. Start the server with nginx reverse proxy:
+   ```bash
+   docker compose -f docker-compose.tls.yml up --build
+   ```
+
+3. Access the services:
+   - REST API: `https://localhost:8443/youtube/v3/videos?part=liveStreamingDetails&id=test-video-1`
+   - gRPC: `grpcurl -insecure localhost:50051 list`
+
+The docker-compose.tls.yml file includes:
+- The YouTube API mock server (without TLS)
+- nginx reverse proxy with TLS termination
+- Self-signed certificates for development (generated via the script)
+
+For production, replace the self-signed certificates in `nginx/certs/` with proper CA-signed certificates.
+
 ### Verification
 
 You can verify the server using `curl` for REST endpoints and `grpcurl` for gRPC endpoints.
@@ -112,6 +151,20 @@ grpcurl -plaintext -H "authorization: Bearer YOUR_ACCESS_TOKEN" -d '{"live_chat_
 ```bash
 grpcurl -plaintext localhost:50051 list
 ```
+
+**With TLS (when native TLS is enabled):**
+
+For REST API with TLS:
+```bash
+curl --insecure "https://localhost:8080/youtube/v3/videos?part=liveStreamingDetails&id=test-video-1"
+```
+
+For gRPC with TLS:
+```bash
+grpcurl -insecure localhost:50051 list
+```
+
+Note: The `--insecure` flag is used with self-signed certificates. In production with proper CA-signed certificates, this flag should not be needed.
 
 ## Features
 
