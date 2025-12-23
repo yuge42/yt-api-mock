@@ -10,11 +10,11 @@ services:
       - GRPC_BIND_ADDRESS=[::]:50051
       - REST_BIND_ADDRESS=[::]:8080
       - HEALTH_BIND_ADDRESS=[::]:8081
-      - TLS_CERT_PATH=/app/server.crt
-      - TLS_KEY_PATH=/app/server.key
+      - TLS_CERT_PATH=/certs/server.crt
+      - TLS_KEY_PATH=/certs/server.key
     volumes:
       # Mount self-signed certificates for testing
-      - ./tls-certs:/app:ro
+      - ./tls-certs:/certs:ro
     healthcheck:
       # Use the insecure health endpoint for healthcheck
       test: ["CMD", "sh", "-c", "nc -z localhost 8081 && curl -f http://localhost:8081/healthz || exit 1"]
