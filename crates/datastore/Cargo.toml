@@ -13,3 +13,4 @@ version.workspace = true
 tokio = { workspace = true }
 serde = { workspace = true }
 domain = { path = "../domain" }
+chrono = "0.4"

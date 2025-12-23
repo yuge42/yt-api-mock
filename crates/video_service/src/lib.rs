@@ -6,6 +6,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::get,
 };
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -75,7 +76,7 @@ pub struct Video {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VideoSnippet {
-    pub published_at: String,
+    pub published_at: DateTime<Utc>,
     pub channel_id: String,
     pub title: String,
     pub description: String,
@@ -87,13 +88,13 @@ pub struct VideoSnippet {
 pub struct LiveStreamingDetails {
     pub active_live_chat_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub actual_start_time: Option<String>,
+    pub actual_start_time: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub actual_end_time: Option<String>,
+    pub actual_end_time: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub scheduled_start_time: Option<String>,
+    pub scheduled_start_time: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub scheduled_end_time: Option<String>,
+    pub scheduled_end_time: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub concurrent_viewers: Option<u64>,
 }
@@ -155,7 +156,7 @@ async fn videos_list(
             id: video_data.id.clone(),
             snippet: if include_snippet {
                 Some(VideoSnippet {
-                    published_at: video_data.published_at.clone(),
+                    published_at: video_data.published_at,
                     channel_id: video_data.channel_id.clone(),
                     title: video_data.title.clone(),
                     description: video_data.description.clone(),
@@ -170,10 +171,10 @@ async fn videos_list(
                     .as_ref()
                     .map(|live_chat_id| LiveStreamingDetails {
                         active_live_chat_id: live_chat_id.clone(),
-                        actual_start_time: video_data.actual_start_time.clone(),
-                        actual_end_time: video_data.actual_end_time.clone(),
-                        scheduled_start_time: video_data.scheduled_start_time.clone(),
-                        scheduled_end_time: video_data.scheduled_end_time.clone(),
+                        actual_start_time: video_data.actual_start_time,
+                        actual_end_time: video_data.actual_end_time,
+                        scheduled_start_time: video_data.scheduled_start_time,
+                        scheduled_end_time: video_data.scheduled_end_time,
                         concurrent_viewers: video_data.concurrent_viewers,
                     })
             } else {

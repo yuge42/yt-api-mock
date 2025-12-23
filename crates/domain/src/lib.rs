@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Represents a video resource
@@ -8,12 +9,12 @@ pub struct Video {
     pub title: String,
     pub description: String,
     pub channel_title: String,
-    pub published_at: String,
+    pub published_at: DateTime<Utc>,
     pub live_chat_id: Option<String>,
-    pub actual_start_time: Option<String>,
-    pub actual_end_time: Option<String>,
-    pub scheduled_start_time: Option<String>,
-    pub scheduled_end_time: Option<String>,
+    pub actual_start_time: Option<DateTime<Utc>>,
+    pub actual_end_time: Option<DateTime<Utc>>,
+    pub scheduled_start_time: Option<DateTime<Utc>>,
+    pub scheduled_end_time: Option<DateTime<Utc>>,
     pub concurrent_viewers: Option<u64>,
 }
 
@@ -25,6 +26,6 @@ pub struct LiveChatMessage {
     pub author_channel_id: String,
     pub author_display_name: String,
     pub message_text: String,
-    pub published_at: String,
+    pub published_at: DateTime<Utc>,
     pub is_verified: bool,
 }
