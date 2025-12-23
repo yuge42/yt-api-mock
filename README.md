@@ -103,34 +103,35 @@ For development and testing purposes, you can generate a CA certificate and serv
    ```
 
 2. Generate server private key and certificate signed by CA:
-   ```bash
-   # Generate server private key
-   openssl genrsa -out server.key 4096
+
+```bash
+# Generate server private key
+openssl genrsa -out server.key 4096
+
+# Generate server certificate signing request
+openssl req -new -key server.key -out server.csr \
+  -subj "/C=US/ST=State/L=City/O=Development/CN=localhost"
+
+# Create OpenSSL config for Subject Alternative Names
+cat << EOF > server.ext
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = localhost
+IP.1 = 127.0.0.1
+IP.2 = ::1
+EOF
    
-   # Generate server certificate signing request
-   openssl req -new -key server.key -out server.csr \
-     -subj "/C=US/ST=State/L=City/O=Development/CN=localhost"
-   
-   # Create OpenSSL config for Subject Alternative Names
-   cat > server.ext << EOF
-   authorityKeyIdentifier=keyid,issuer
-   basicConstraints=CA:FALSE
-   keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
-   subjectAltName = @alt_names
-   
-   [alt_names]
-   DNS.1 = localhost
-   IP.1 = 127.0.0.1
-   IP.2 = ::1
-   EOF
-   
-   # Sign server certificate with CA
-   openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
-     -out server.crt -days 365 -sha256 -extfile server.ext
-   
-   # Clean up temporary files
-   rm server.csr server.ext ca.srl
-   ```
+# Sign server certificate with CA
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
+  -out server.crt -days 365 -sha256 -extfile server.ext
+
+# Clean up temporary files
+rm server.csr server.ext ca.srl
+```
 
 3. This creates four files:
    - `ca.crt` - CA certificate (use with `--cacert` or install at system level)
@@ -201,29 +202,15 @@ curl --cacert ca.crt "https://localhost:8080/youtube/v3/videos?part=liveStreamin
 For gRPC with TLS:
 ```bash
 grpcurl -cacert ca.crt localhost:50051 list
+grpcurl -cacert ca.crt -d '{"live_chat_id": "live-chat-id-1", "part": ["snippet", "authorDetails"]}' localhost
+:50051 youtube.api.v3.V3DataLiveChatMessageService/StreamList
 ```
 
-Note: The `--cacert` flag specifies the CA certificate to verify the server's certificate. For development with a custom CA, use the generated `ca.crt` file. In production with proper CA-signed certificates, use the CA's root certificate.
+Note: The `--cacert` flag specifies the CA certificate to verify the server's certificate.
 
 **Installing Development CA at System Level (Optional):**
 
-For development environments, you can install the CA certificate at the system level to avoid specifying `--cacert` in every command. This allows client applications to use TLS without modifying code to load custom certificates:
-
-- **Ubuntu/Debian:**
-  ```bash
-  sudo cp ca.crt /usr/local/share/ca-certificates/dev-ca.crt
-  sudo update-ca-certificates
-  ```
-
-- **macOS:**
-  ```bash
-  sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ca.crt
-  ```
-
-- **Windows (Administrator PowerShell):**
-  ```powershell
-  Import-Certificate -FilePath ca.crt -CertStoreLocation Cert:\LocalMachine\Root
-  ```
+For development environments, you can install the CA certificate at the system level to avoid specifying `--cacert` in every command. This allows client applications to use TLS without modifying code to load custom certificates.
 
 After installing the CA certificate, you can use curl/grpcurl without the `--cacert` flag, and client applications will automatically trust the server certificate.
 
