@@ -26,16 +26,25 @@ Start the server using cargo:
 cargo run -p server
 ```
 
-The server runs two services:
+The server runs three services:
 - **gRPC server** (live chat) listens on `[::1]:50051` by default
 - **REST server** (videos API) listens on `[::1]:8080` by default
+- **Health check endpoint** listens on `[::1]:8081` by default (always accessible without TLS)
 
 #### Configuration
 
 You can configure the bind addresses and authentication using environment variables:
 
 ```bash
-GRPC_BIND_ADDRESS="0.0.0.0:50051" REST_BIND_ADDRESS="0.0.0.0:8080" cargo run -p server
+GRPC_BIND_ADDRESS="0.0.0.0:50051" REST_BIND_ADDRESS="0.0.0.0:8080" HEALTH_BIND_ADDRESS="0.0.0.0:8081" cargo run -p server
+```
+
+**Health Check Endpoint:**
+
+The server provides a simple health check endpoint at `/healthz` that returns "OK" when the server is running. This endpoint always runs without TLS, even when TLS is enabled for the main endpoints, making it suitable for container health checks and load balancers.
+
+```bash
+curl http://localhost:8081/healthz
 ```
 
 **Optional Authentication:**

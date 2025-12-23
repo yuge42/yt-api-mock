@@ -9,15 +9,15 @@ services:
     environment:
       - GRPC_BIND_ADDRESS=[::]:50051
       - REST_BIND_ADDRESS=[::]:8080
+      - HEALTH_BIND_ADDRESS=[::]:8081
       - TLS_CERT_PATH=/app/server.crt
       - TLS_KEY_PATH=/app/server.key
     volumes:
       # Mount self-signed certificates for testing
       - ./tls-certs:/app:ro
     healthcheck:
-      # For TLS, we need to use openssl or grpcurl to check health
-      # For simplicity, just check if the process is running
-      test: ["CMD", "sh", "-c", "ps aux | grep server || exit 1"]
+      # Use the insecure health endpoint for healthcheck
+      test: ["CMD", "sh", "-c", "nc -z localhost 8081 && curl -f http://localhost:8081/healthz || exit 1"]
       interval: 2s
       timeout: 5s
       retries: 10
