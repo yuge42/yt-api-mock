@@ -3,6 +3,10 @@ set -e
 
 # Generate self-signed certificates for development/testing
 # DO NOT use these certificates in production!
+#
+# SECURITY NOTE: This script generates an unencrypted private key (-nodes flag)
+# for ease of use in development. In production, keys should be encrypted
+# and properly secured.
 
 CERT_DIR="$(dirname "$0")/certs"
 mkdir -p "$CERT_DIR"
@@ -18,7 +22,7 @@ openssl req -x509 -newkey rsa:4096 -nodes \
 
 echo "Certificates generated in $CERT_DIR"
 echo "  Certificate: $CERT_DIR/server.crt"
-echo "  Private key: $CERT_DIR/server.key"
+echo "  Private key: $CERT_DIR/server.key (UNENCRYPTED)"
 echo ""
-echo "WARNING: These are self-signed certificates for development only!"
-echo "Do not use in production environments."
+echo "WARNING: These are self-signed certificates with an unencrypted private key!"
+echo "Only use for development/testing. Do not use in production environments."

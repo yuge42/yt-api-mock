@@ -86,6 +86,7 @@ async fn load_rustls_config(
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Install the default crypto provider for rustls (required for TLS)
+    // This is safe to call even if a provider is already installed
     let _ = rustls::crypto::ring::default_provider().install_default();
 
     let grpc_bind_address =
@@ -156,8 +157,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Run both servers concurrently
     if use_tls {
-        let cert_path = tls_cert_path.unwrap();
-        let key_path = tls_key_path.unwrap();
+        let cert_path = tls_cert_path.expect("TLS cert path should be present when use_tls is true");
+        let key_path = tls_key_path.expect("TLS key path should be present when use_tls is true");
 
         // Load TLS config for gRPC
         let grpc_tls_config = load_tls_config(cert_path.clone(), key_path.clone())?;
