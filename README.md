@@ -163,15 +163,15 @@ grpcurl -plaintext localhost:50051 list
 
 For REST API with TLS:
 ```bash
-curl --insecure "https://localhost:8080/youtube/v3/videos?part=liveStreamingDetails&id=test-video-1"
+curl --cacert server.crt "https://localhost:8080/youtube/v3/videos?part=liveStreamingDetails&id=test-video-1"
 ```
 
 For gRPC with TLS:
 ```bash
-grpcurl -insecure localhost:50051 list
+grpcurl -cacert server.crt localhost:50051 list
 ```
 
-Note: The `--insecure` flag is used with self-signed certificates. In production with proper CA-signed certificates, this flag should not be needed.
+Note: The `--cacert` flag specifies the CA certificate to verify the server's certificate. For self-signed certificates, use the same certificate file. In production with proper CA-signed certificates, use the CA's root certificate.
 
 ## Features
 

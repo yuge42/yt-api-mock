@@ -9,6 +9,7 @@ const { URL } = require('url');
 const fetch = require('node-fetch');
 const { Buffer } = require('buffer');
 const https = require('https');
+const fs = require('fs');
 
 // ============================================================================
 // Constants
@@ -1108,8 +1109,11 @@ step('Connect to the server with TLS', async function () {
     throw new Error('gRPC server address not set. Please set GRPC_SERVER_ADDRESS environment variable or use default.');
   }
   
-  // Create SSL credentials for TLS connection with default root CAs
-  const sslCreds = grpc.credentials.createSsl();
+  // Read the CA certificate for TLS verification
+  const caCert = fs.readFileSync('./tls-certs/server.crt');
+  
+  // Create SSL credentials for TLS connection with CA certificate
+  const sslCreds = grpc.credentials.createSsl(caCert);
   const client = new services.V3DataLiveChatMessageServiceClient(
     grpcServerAddress,
     sslCreds
@@ -1126,8 +1130,11 @@ step('Request video via REST with TLS with id <videoId> and parts <parts>', asyn
     throw new Error('REST server address not set');
   }
 
+  // Read the CA certificate for TLS verification
+  const caCert = fs.readFileSync('./tls-certs/server.crt');
+  
   const httpsAgent = new https.Agent({
-    rejectUnauthorized: false // Accept self-signed certificates for testing
+    ca: caCert // Use CA certificate for verification
   });
 
   const url = new URL('/youtube/v3/videos', restServerAddress);
