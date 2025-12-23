@@ -88,30 +88,62 @@ TLS_CERT_PATH=/path/to/cert.pem TLS_KEY_PATH=/path/to/key.pem cargo run -p serve
 
 Both environment variables must be set for TLS to be enabled. When TLS is enabled, the server will use HTTPS for REST endpoints and TLS for gRPC endpoints.
 
-**Generating Self-Signed Certificates for Development:**
+**Generating Certificates with CA for Development:**
 
-For development and testing purposes, you can generate self-signed certificates using OpenSSL:
+For development and testing purposes, you can generate a CA certificate and server certificate using OpenSSL:
 
-1. Generate a private key and certificate in one command:
+1. Generate CA private key and certificate:
    ```bash
-   openssl req -x509 -newkey rsa:4096 -nodes \
-     -keyout server.key \
-     -out server.crt \
-     -days 365 \
-     -subj "/C=US/ST=State/L=City/O=Development/CN=localhost" \
-     -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:::1"
+   # Generate CA private key
+   openssl genrsa -out ca.key 4096
+   
+   # Generate CA certificate
+   openssl req -x509 -new -nodes -key ca.key -sha256 -days 365 -out ca.crt \
+     -subj "/C=US/ST=State/L=City/O=Development/CN=Development CA"
    ```
 
-2. This creates two files:
-   - `server.crt` - The certificate file
-   - `server.key` - The private key file (unencrypted for development convenience)
+2. Generate server private key and certificate signed by CA:
+   ```bash
+   # Generate server private key
+   openssl genrsa -out server.key 4096
+   
+   # Generate server certificate signing request
+   openssl req -new -key server.key -out server.csr \
+     -subj "/C=US/ST=State/L=City/O=Development/CN=localhost"
+   
+   # Create OpenSSL config for Subject Alternative Names
+   cat > server.ext << EOF
+   authorityKeyIdentifier=keyid,issuer
+   basicConstraints=CA:FALSE
+   keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+   subjectAltName = @alt_names
+   
+   [alt_names]
+   DNS.1 = localhost
+   IP.1 = 127.0.0.1
+   IP.2 = ::1
+   EOF
+   
+   # Sign server certificate with CA
+   openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
+     -out server.crt -days 365 -sha256 -extfile server.ext
+   
+   # Clean up temporary files
+   rm server.csr server.ext ca.srl
+   ```
 
-3. Run the server with TLS:
+3. This creates four files:
+   - `ca.crt` - CA certificate (use with `--cacert` or install at system level)
+   - `ca.key` - CA private key (keep secure)
+   - `server.crt` - Server certificate
+   - `server.key` - Server private key (unencrypted for development convenience)
+
+4. Run the server with TLS:
    ```bash
    TLS_CERT_PATH=./server.crt TLS_KEY_PATH=./server.key cargo run -p server
    ```
 
-**Important:** Self-signed certificates are only for development/testing. For production, use certificates from a trusted Certificate Authority (CA).
+**Important:** These certificates are only for development/testing. For production, use certificates from a trusted Certificate Authority (CA).
 
 ### Verification
 
@@ -163,15 +195,39 @@ grpcurl -plaintext localhost:50051 list
 
 For REST API with TLS:
 ```bash
-curl --cacert server.crt "https://localhost:8080/youtube/v3/videos?part=liveStreamingDetails&id=test-video-1"
+curl --cacert ca.crt "https://localhost:8080/youtube/v3/videos?part=liveStreamingDetails&id=test-video-1"
 ```
 
 For gRPC with TLS:
 ```bash
-grpcurl -cacert server.crt localhost:50051 list
+grpcurl -cacert ca.crt localhost:50051 list
 ```
 
-Note: The `--cacert` flag specifies the CA certificate to verify the server's certificate. For self-signed certificates, use the same certificate file. In production with proper CA-signed certificates, use the CA's root certificate.
+Note: The `--cacert` flag specifies the CA certificate to verify the server's certificate. For development with a custom CA, use the generated `ca.crt` file. In production with proper CA-signed certificates, use the CA's root certificate.
+
+**Installing Development CA at System Level (Optional):**
+
+For development environments, you can install the CA certificate at the system level to avoid specifying `--cacert` in every command. This allows client applications to use TLS without modifying code to load custom certificates:
+
+- **Ubuntu/Debian:**
+  ```bash
+  sudo cp ca.crt /usr/local/share/ca-certificates/dev-ca.crt
+  sudo update-ca-certificates
+  ```
+
+- **macOS:**
+  ```bash
+  sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ca.crt
+  ```
+
+- **Windows (Administrator PowerShell):**
+  ```powershell
+  Import-Certificate -FilePath ca.crt -CertStoreLocation Cert:\LocalMachine\Root
+  ```
+
+After installing the CA certificate, you can use curl/grpcurl without the `--cacert` flag, and client applications will automatically trust the server certificate.
+
+**Warning:** Only install development CA certificates on development machines. Remove them when no longer needed.
 
 ## Features
 

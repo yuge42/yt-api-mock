@@ -1110,7 +1110,7 @@ step('Connect to the server with TLS', async function () {
   }
   
   // Read the CA certificate for TLS verification
-  const caCert = fs.readFileSync('./tls-certs/server.crt');
+  const caCert = fs.readFileSync('./tls-certs/ca.crt');
   
   // Create SSL credentials for TLS connection with CA certificate
   const sslCreds = grpc.credentials.createSsl(caCert);
@@ -1131,7 +1131,7 @@ step('Request video via REST with TLS with id <videoId> and parts <parts>', asyn
   }
 
   // Read the CA certificate for TLS verification
-  const caCert = fs.readFileSync('./tls-certs/server.crt');
+  const caCert = fs.readFileSync('./tls-certs/ca.crt');
   
   const httpsAgent = new https.Agent({
     ca: caCert // Use CA certificate for verification
