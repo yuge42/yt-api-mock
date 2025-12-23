@@ -1,9 +1,9 @@
 use axum::Router;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tonic::transport::Server as GrpcServer;
 use tower::ServiceBuilder;
-use std::path::PathBuf;
 
 // Middleware to log access requests
 #[derive(Clone)]
@@ -151,8 +151,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/control", control_router);
 
     // Create a simple health check endpoint (always runs without TLS)
-    let health_app = Router::new()
-        .route("/healthz", axum::routing::get(|| async { "OK" }));
+    let health_app = Router::new().route("/healthz", axum::routing::get(|| async { "OK" }));
 
     if use_tls {
         println!("TLS enabled");
@@ -160,8 +159,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "gRPC server (live chat) listening on {} with TLS",
             grpc_addr
         );
-        println!("REST server (videos API) listening on {} with TLS", rest_addr);
-        println!("Health check endpoint listening on {} (no TLS)", health_addr);
+        println!(
+            "REST server (videos API) listening on {} with TLS",
+            rest_addr
+        );
+        println!(
+            "Health check endpoint listening on {} (no TLS)",
+            health_addr
+        );
     } else {
         println!("TLS disabled");
         println!("gRPC server (live chat) listening on {}", grpc_addr);
@@ -171,7 +176,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Run both servers concurrently
     if use_tls {
-        let cert_path = tls_cert_path.expect("TLS cert path should be present when use_tls is true");
+        let cert_path =
+            tls_cert_path.expect("TLS cert path should be present when use_tls is true");
         let key_path = tls_key_path.expect("TLS key path should be present when use_tls is true");
 
         // Load TLS config for gRPC
