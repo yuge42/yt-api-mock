@@ -1,2 +1,0 @@
-# This directory stores TLS certificates
-# Run ../generate-certs.sh to generate self-signed certificates for development

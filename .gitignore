@@ -21,6 +21,6 @@ target
 #.idea/
 
 # TLS certificates and keys
-nginx/certs/*.crt
-nginx/certs/*.key
-nginx/certs/*.pem
+*.crt
+*.key
+*.pem

@@ -69,11 +69,9 @@ CHAT_STREAM_TIMEOUT=30 cargo run -p server
 
 **TLS Support:**
 
-The server supports TLS encryption for both gRPC and REST endpoints. There are two ways to enable TLS:
+The server supports TLS encryption for both gRPC and REST endpoints.
 
-**Option 1: Native TLS Support (Server-side)**
-
-Configure TLS directly in the server by providing certificate and key file paths:
+Configure TLS by providing certificate and key file paths via environment variables:
 
 ```bash
 TLS_CERT_PATH=/path/to/cert.pem TLS_KEY_PATH=/path/to/key.pem cargo run -p server
@@ -81,30 +79,30 @@ TLS_CERT_PATH=/path/to/cert.pem TLS_KEY_PATH=/path/to/key.pem cargo run -p serve
 
 Both environment variables must be set for TLS to be enabled. When TLS is enabled, the server will use HTTPS for REST endpoints and TLS for gRPC endpoints.
 
-**Option 2: Reverse Proxy with Docker Compose**
+**Generating Self-Signed Certificates for Development:**
 
-Use nginx as a reverse proxy for TLS termination. This approach is recommended for production deployments.
+For development and testing purposes, you can generate self-signed certificates using OpenSSL:
 
-1. Generate self-signed certificates for development (not for production):
+1. Generate a private key and certificate in one command:
    ```bash
-   ./nginx/generate-certs.sh
+   openssl req -x509 -newkey rsa:4096 -nodes \
+     -keyout server.key \
+     -out server.crt \
+     -days 365 \
+     -subj "/C=US/ST=State/L=City/O=Development/CN=localhost" \
+     -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:::1"
    ```
 
-2. Start the server with nginx reverse proxy:
+2. This creates two files:
+   - `server.crt` - The certificate file
+   - `server.key` - The private key file (unencrypted for development convenience)
+
+3. Run the server with TLS:
    ```bash
-   docker compose -f docker-compose.tls.yml up --build
+   TLS_CERT_PATH=./server.crt TLS_KEY_PATH=./server.key cargo run -p server
    ```
 
-3. Access the services:
-   - REST API: `https://localhost:8443/youtube/v3/videos?part=liveStreamingDetails&id=test-video-1`
-   - gRPC: `grpcurl -insecure localhost:50051 list`
-
-The docker-compose.tls.yml file includes:
-- The YouTube API mock server (without TLS)
-- nginx reverse proxy with TLS termination
-- Self-signed certificates for development (generated via the script)
-
-For production, replace the self-signed certificates in `nginx/certs/` with proper CA-signed certificates.
+**Important:** Self-signed certificates are only for development/testing. For production, use certificates from a trusted Certificate Authority (CA).
 
 ### Verification
 

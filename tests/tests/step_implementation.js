@@ -1095,3 +1095,57 @@ step('Verify error with message containing <text>', async function (text) {
   
   console.log(`Verified error contains: ${text}`);
 });
+
+// ============================================================================
+// TLS-Specific Steps
+// ============================================================================
+
+// Connect to the server with TLS
+step('Connect to the server with TLS', async function () {
+  const grpcServerAddress = gauge.dataStore.specStore.get('grpcServerAddress');
+  if (!grpcServerAddress) {
+    throw new Error('gRPC server address not set. Please set GRPC_SERVER_ADDRESS environment variable or use default.');
+  }
+  
+  // Create SSL credentials for TLS connection
+  // Using createInsecure for self-signed certificates in testing
+  const sslCreds = grpc.credentials.createSsl();
+  const client = new services.V3DataLiveChatMessageServiceClient(
+    grpcServerAddress,
+    sslCreds
+  );
+  
+  gauge.dataStore.scenarioStore.put('client', client);
+  console.log(`Connected to gRPC server with TLS at ${grpcServerAddress}`);
+});
+
+// Request video via REST with TLS
+step('Request video via REST with TLS with id <videoId> and parts <parts>', async function (videoId, parts) {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  if (!restServerAddress) {
+    throw new Error('REST server address not set');
+  }
+
+  const https = require('https');
+  const httpsAgent = new https.Agent({
+    rejectUnauthorized: false // Accept self-signed certificates for testing
+  });
+
+  const url = new URL('/youtube/v3/videos', restServerAddress);
+  url.searchParams.append('id', videoId);
+  url.searchParams.append('part', parts);
+
+  console.log(`Making TLS request to: ${url.toString()}`);
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    agent: httpsAgent
+  });
+
+  const statusCode = response.status;
+  gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
+
+  const data = await response.json();
+  gauge.dataStore.scenarioStore.put('videoResponse', data);
+  console.log(`Received TLS response with status ${statusCode}`);
+});

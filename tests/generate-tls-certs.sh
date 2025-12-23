@@ -1,17 +1,17 @@
 #!/bin/bash
 set -e
 
-# Generate self-signed certificates for development/testing
+# Generate self-signed certificates for TLS testing
 # DO NOT use these certificates in production!
 #
 # SECURITY NOTE: This script generates an unencrypted private key (-nodes flag)
 # for ease of use in development. In production, keys should be encrypted
 # and properly secured.
 
-CERT_DIR="$(dirname "$0")/certs"
+CERT_DIR="$(dirname "$0")/tls-certs"
 mkdir -p "$CERT_DIR"
 
-echo "Generating self-signed certificate for development..."
+echo "Generating self-signed certificate for TLS testing..."
 
 openssl req -x509 -newkey rsa:4096 -nodes \
     -keyout "$CERT_DIR/server.key" \

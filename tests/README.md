@@ -100,6 +100,7 @@ gauge run specs/
 Tests are organized with tags for selective execution:
 - `core` - Core functionality tests (run without REQUIRE_AUTH)
 - `auth` - Authorization tests (require REQUIRE_AUTH=true)
+- `tls` - TLS encryption tests (require TLS_CERT_PATH and TLS_KEY_PATH)
 - `rest` - REST API tests
 - `grpc` - gRPC API tests
 
@@ -113,6 +114,9 @@ gauge run --tags "auth" specs/
 
 # Run all REST tests
 gauge run --tags "rest" specs/
+
+# Run TLS tests (requires TLS enabled)
+gauge run --tags "tls" specs/
 ```
 
 ### Running Authorization Tests
@@ -135,6 +139,46 @@ cd tests
 gauge run --tags "auth" specs/
 ```
 
+### Running TLS Tests
+
+TLS tests verify the server's TLS encryption support for both REST and gRPC endpoints.
+
+**Using Docker Compose (Recommended):**
+
+1. Generate test certificates:
+   ```bash
+   cd tests
+   ./generate-tls-certs.sh
+   ```
+
+2. Run TLS tests:
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build --abort-on-container-exit
+   ```
+
+**Manual approach:**
+
+1. Generate test certificates (from project root):
+   ```bash
+   openssl req -x509 -newkey rsa:4096 -nodes \
+     -keyout server.key \
+     -out server.crt \
+     -days 365 \
+     -subj "/C=US/ST=State/L=City/O=Development/CN=localhost" \
+     -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:::1"
+   ```
+
+2. Start server with TLS:
+   ```bash
+   TLS_CERT_PATH=./server.crt TLS_KEY_PATH=./server.key cargo run -p server
+   ```
+
+3. Run TLS tests:
+   ```bash
+   cd tests
+   GRPC_SERVER_ADDRESS=localhost:50051 REST_SERVER_ADDRESS=https://localhost:8080 gauge run --tags "tls" specs/
+   ```
+
 ## Test Structure
 
 - `specs/` - Contains Gauge specification files (`.spec`)
@@ -142,6 +186,7 @@ gauge run --tags "auth" specs/
   - `videos_list.spec` - Tests for the Videos List REST endpoint (Tags: core, rest)
   - `auth_rest.spec` - Authorization tests for REST API (Tags: auth, rest)
   - `auth_grpc.spec` - Authorization tests for gRPC API (Tags: auth, grpc)
+  - `tls.spec` - TLS encryption tests for both REST and gRPC (Tags: tls, rest, grpc)
 - `tests/` - Contains step implementation files
   - `step_implementation.js` - JavaScript implementation of test steps
 - `proto-gen/` - Generated gRPC client code (auto-generated, gitignored)
