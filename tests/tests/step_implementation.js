@@ -8,6 +8,7 @@ const assert = require('assert');
 const { URL } = require('url');
 const fetch = require('node-fetch');
 const { Buffer } = require('buffer');
+const https = require('https');
 
 // ============================================================================
 // Constants
@@ -1107,8 +1108,7 @@ step('Connect to the server with TLS', async function () {
     throw new Error('gRPC server address not set. Please set GRPC_SERVER_ADDRESS environment variable or use default.');
   }
   
-  // Create SSL credentials for TLS connection
-  // Using createInsecure for self-signed certificates in testing
+  // Create SSL credentials for TLS connection with default root CAs
   const sslCreds = grpc.credentials.createSsl();
   const client = new services.V3DataLiveChatMessageServiceClient(
     grpcServerAddress,
@@ -1126,7 +1126,6 @@ step('Request video via REST with TLS with id <videoId> and parts <parts>', asyn
     throw new Error('REST server address not set');
   }
 
-  const https = require('https');
   const httpsAgent = new https.Agent({
     rejectUnauthorized: false // Accept self-signed certificates for testing
   });
