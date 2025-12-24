@@ -62,6 +62,11 @@ openssl x509 -req \
 # Clean up temporary files
 rm -f "$CERT_DIR/server.csr" "$CERT_DIR/server.ext" "$CERT_DIR/ca.srl"
 
+# Set permissions to allow reading by Docker container users
+# In development/testing, we prioritize convenience over strict security
+chmod 644 "$CERT_DIR/ca.crt" "$CERT_DIR/ca.key"
+chmod 644 "$CERT_DIR/server.crt" "$CERT_DIR/server.key"
+
 echo "Certificates generated in $CERT_DIR"
 echo "  CA Certificate: $CERT_DIR/ca.crt"
 echo "  CA Private key: $CERT_DIR/ca.key (UNENCRYPTED)"
