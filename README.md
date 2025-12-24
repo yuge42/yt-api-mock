@@ -26,16 +26,25 @@ Start the server using cargo:
 cargo run -p server
 ```
 
-The server runs two services:
+The server runs three services:
 - **gRPC server** (live chat) listens on `[::1]:50051` by default
 - **REST server** (videos API) listens on `[::1]:8080` by default
+- **Health check endpoint** listens on `[::1]:8081` by default (always accessible without TLS)
 
 #### Configuration
 
 You can configure the bind addresses and authentication using environment variables:
 
 ```bash
-GRPC_BIND_ADDRESS="0.0.0.0:50051" REST_BIND_ADDRESS="0.0.0.0:8080" cargo run -p server
+GRPC_BIND_ADDRESS="0.0.0.0:50051" REST_BIND_ADDRESS="0.0.0.0:8080" HEALTH_BIND_ADDRESS="0.0.0.0:8081" cargo run -p server
+```
+
+**Health Check Endpoint:**
+
+The server provides a simple health check endpoint at `/healthz` that returns "OK" when the server is running. This endpoint always runs without TLS, even when TLS is enabled for the main endpoints, making it suitable for container health checks and load balancers.
+
+```bash
+curl http://localhost:8081/healthz
 ```
 
 **Optional Authentication:**
@@ -66,6 +75,76 @@ CHAT_STREAM_TIMEOUT=30 cargo run -p server
 
 - If not set or set to `0`, the connection will be kept alive indefinitely and new messages will be pushed to the client as they arrive
 - If set to a positive number, the connection will be closed after the specified number of seconds
+
+**TLS Support:**
+
+The server supports TLS encryption for both gRPC and REST endpoints.
+
+Configure TLS by providing certificate and key file paths via environment variables:
+
+```bash
+TLS_CERT_PATH=/path/to/cert.pem TLS_KEY_PATH=/path/to/key.pem cargo run -p server
+```
+
+Both environment variables must be set for TLS to be enabled. When TLS is enabled, the server will use HTTPS for REST endpoints and TLS for gRPC endpoints.
+
+**Generating Certificates with CA for Development:**
+
+For development and testing purposes, you can generate a CA certificate and server certificate using OpenSSL:
+
+1. Generate CA private key and certificate:
+   ```bash
+   # Generate CA private key
+   openssl genrsa -out ca.key 4096
+   
+   # Generate CA certificate
+   openssl req -x509 -new -nodes -key ca.key -sha256 -days 365 -out ca.crt \
+     -subj "/C=US/ST=State/L=City/O=Development/CN=Development CA"
+   ```
+
+2. Generate server private key and certificate signed by CA:
+
+```bash
+# Generate server private key
+openssl genrsa -out server.key 4096
+
+# Generate server certificate signing request
+openssl req -new -key server.key -out server.csr \
+  -subj "/C=US/ST=State/L=City/O=Development/CN=localhost"
+
+# Create OpenSSL config for Subject Alternative Names
+cat << EOF > server.ext
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = localhost
+IP.1 = 127.0.0.1
+IP.2 = ::1
+EOF
+   
+# Sign server certificate with CA
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
+  -out server.crt -days 365 -sha256 -extfile server.ext
+
+# Clean up temporary files
+rm server.csr server.ext ca.srl
+```
+
+3. This creates four files:
+   - `ca.crt` - CA certificate (use with `--cacert` or install at system level)
+   - `ca.key` - CA private key (keep secure)
+   - `server.crt` - Server certificate
+   - `server.key` - Server private key (unencrypted for development convenience)
+
+4. Run the server with TLS:
+   ```bash
+   TLS_CERT_PATH=./server.crt TLS_KEY_PATH=./server.key cargo run -p server
+   ```
+
+**Important:** These certificates are only for development/testing. For production, use certificates from a trusted Certificate Authority (CA).
 
 ### Verification
 
@@ -112,6 +191,30 @@ grpcurl -plaintext -H "authorization: Bearer YOUR_ACCESS_TOKEN" -d '{"live_chat_
 ```bash
 grpcurl -plaintext localhost:50051 list
 ```
+
+**With TLS (when native TLS is enabled):**
+
+For REST API with TLS:
+```bash
+curl --cacert ca.crt "https://localhost:8080/youtube/v3/videos?part=liveStreamingDetails&id=test-video-1"
+```
+
+For gRPC with TLS:
+```bash
+grpcurl -cacert ca.crt localhost:50051 list
+grpcurl -cacert ca.crt -d '{"live_chat_id": "live-chat-id-1", "part": ["snippet", "authorDetails"]}' localhost
+:50051 youtube.api.v3.V3DataLiveChatMessageService/StreamList
+```
+
+Note: The `--cacert` flag specifies the CA certificate to verify the server's certificate.
+
+**Installing Development CA at System Level (Optional):**
+
+For development environments, you can install the CA certificate at the system level to avoid specifying `--cacert` in every command. This allows client applications to use TLS without modifying code to load custom certificates.
+
+After installing the CA certificate, you can use curl/grpcurl without the `--cacert` flag, and client applications will automatically trust the server certificate.
+
+**Warning:** Only install development CA certificates on development machines. Remove them when no longer needed.
 
 ## Features
 

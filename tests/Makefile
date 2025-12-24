@@ -1,4 +1,4 @@
-.PHONY: help docker-test docker-test-auth docker-build docker-clean test test-auth test-core clean
+.PHONY: help docker-test docker-test-auth docker-test-tls docker-build docker-clean test test-auth test-core test-tls clean
 
 help: ## Show this help message
 	@echo "Available targets:"
@@ -10,6 +10,11 @@ docker-test: ## Run core tests using Docker Compose
 
 docker-test-auth: ## Run authorization tests using Docker Compose
 	docker compose -f docker-compose.yml -f docker-compose.auth.yml up --build --abort-on-container-exit --exit-code-from tests
+	docker compose down
+
+docker-test-tls: ## Run TLS tests using Docker Compose
+	./generate-tls-certs.sh
+	docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build --abort-on-container-exit --exit-code-from tests
 	docker compose down
 
 docker-build: ## Build Docker images
@@ -27,6 +32,9 @@ test-core: ## Run core tests locally
 
 test-auth: ## Run auth tests locally (requires REQUIRE_AUTH=true)
 	gauge run --tags "auth" specs/
+
+test-tls: ## Run TLS tests locally (requires TLS-enabled server)
+	gauge run --tags "tls" specs/
 
 clean: ## Clean local test artifacts
 	rm -rf reports logs .gauge node_modules proto-gen

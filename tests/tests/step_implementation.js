@@ -8,6 +8,8 @@ const assert = require('assert');
 const { URL } = require('url');
 const fetch = require('node-fetch');
 const { Buffer } = require('buffer');
+const https = require('https');
+const fs = require('fs');
 
 // ============================================================================
 // Constants
@@ -1094,4 +1096,62 @@ step('Verify error with message containing <text>', async function (text) {
   );
   
   console.log(`Verified error contains: ${text}`);
+});
+
+// ============================================================================
+// TLS-Specific Steps
+// ============================================================================
+
+// Connect to the server with TLS
+step('Connect to the server with TLS', async function () {
+  const grpcServerAddress = gauge.dataStore.specStore.get('grpcServerAddress');
+  if (!grpcServerAddress) {
+    throw new Error('gRPC server address not set. Please set GRPC_SERVER_ADDRESS environment variable or use default.');
+  }
+  
+  // Read the CA certificate for TLS verification
+  const caCert = fs.readFileSync('./tls-certs/ca.crt');
+  
+  // Create SSL credentials for TLS connection with CA certificate
+  const sslCreds = grpc.credentials.createSsl(caCert);
+  const client = new services.V3DataLiveChatMessageServiceClient(
+    grpcServerAddress,
+    sslCreds
+  );
+  
+  gauge.dataStore.scenarioStore.put('client', client);
+  console.log(`Connected to gRPC server with TLS at ${grpcServerAddress}`);
+});
+
+// Request video via REST with TLS
+step('Request video via REST with TLS with id <videoId> and parts <parts>', async function (videoId, parts) {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  if (!restServerAddress) {
+    throw new Error('REST server address not set');
+  }
+
+  // Read the CA certificate for TLS verification
+  const caCert = fs.readFileSync('./tls-certs/ca.crt');
+  
+  const httpsAgent = new https.Agent({
+    ca: caCert // Use CA certificate for verification
+  });
+
+  const url = new URL('/youtube/v3/videos', restServerAddress);
+  url.searchParams.append('id', videoId);
+  url.searchParams.append('part', parts);
+
+  console.log(`Making TLS request to: ${url.toString()}`);
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    agent: httpsAgent
+  });
+
+  const statusCode = response.status;
+  gauge.dataStore.scenarioStore.put('lastHttpStatusCode', statusCode);
+
+  const data = await response.json();
+  gauge.dataStore.scenarioStore.put('videoResponse', data);
+  console.log(`Received TLS response with status ${statusCode}`);
 });

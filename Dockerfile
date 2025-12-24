@@ -25,11 +25,12 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
 # Stage 2: Runtime
 FROM debian:bookworm-slim
 
-# Install CA certificates and netcat for healthchecks
+# Install CA certificates, netcat, and curl for healthchecks
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ca-certificates \
     netcat-openbsd \
+    curl \
     && rm -rf /var/lib/apt/lists/* && \
     adduser --disabled-password --gecos '' appuser
 
@@ -45,12 +46,13 @@ RUN chmod +x /app/server && \
 # Run as non-root user
 USER appuser
 
-# Expose the gRPC and REST server ports
-EXPOSE 50051 8080
+# Expose the gRPC, REST, and health check server ports
+EXPOSE 50051 8080 8081
 
 # Set default bind addresses (can be overridden via environment variables)
 ENV GRPC_BIND_ADDRESS="[::]:50051"
 ENV REST_BIND_ADDRESS="[::]:8080"
+ENV HEALTH_BIND_ADDRESS="[::]:8081"
 
 # Run the server
 CMD ["/app/server"]

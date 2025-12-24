@@ -1,0 +1,30 @@
+# Docker Compose configuration for TLS tests
+# This setup runs the server with native TLS support enabled
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build --abort-on-container-exit
+
+services:
+  server:
+    environment:
+      - GRPC_BIND_ADDRESS=[::]:50051
+      - REST_BIND_ADDRESS=[::]:8080
+      - HEALTH_BIND_ADDRESS=[::]:8081
+      - TLS_CERT_PATH=/certs/server.crt
+      - TLS_KEY_PATH=/certs/server.key
+    volumes:
+      # Mount self-signed certificates for testing
+      - ./tls-certs:/certs:ro
+    healthcheck:
+      # Use the insecure health endpoint for healthcheck
+      test: ["CMD", "sh", "-c", "nc -z localhost 8081 && curl -f http://localhost:8081/healthz || exit 1"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+  
+  tests:
+    environment:
+      - GRPC_SERVER_ADDRESS=server:50051
+      - REST_SERVER_ADDRESS=https://server:8080
+    command: ["gauge", "run", "--tags", "tls", "specs/"]
