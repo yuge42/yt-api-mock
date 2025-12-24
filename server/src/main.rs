@@ -166,14 +166,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             rest_addr
         );
         println!(
-            "Health check endpoint listening on {} (no TLS)",
+            "Health check and control endpoints listening on {} (no TLS)",
             health_addr
         );
     } else {
         println!("TLS disabled");
         println!("gRPC server (live chat) listening on {}", grpc_addr);
         println!("REST server (videos API) listening on {}", rest_addr);
-        println!("Health check endpoint listening on {}", health_addr);
+        println!("Health check and control endpoints listening on {}", health_addr);
     }
 
     // Run both servers concurrently
