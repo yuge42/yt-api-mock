@@ -138,6 +138,13 @@ step('REST server address from environment variable <envVar> or default <default
   console.log(`REST server address set to: ${address}`);
 });
 
+// Store Health server address from environment or default
+step('Health server address from environment variable <envVar> or default <defaultAddress>', async function (envVar, defaultAddress) {
+  const address = process.env[envVar] || defaultAddress;
+  gauge.dataStore.specStore.put('healthServerAddress', address);
+  console.log(`Health server address set to: ${address}`);
+});
+
 // Helper function to make HTTP GET requests to the REST API
 async function makeRestRequest(restServerAddress, path, queryParams = {}, headers = {}) {
   if (!restServerAddress) {
@@ -168,12 +175,12 @@ async function makeRestRequest(restServerAddress, path, queryParams = {}, header
 
 // Create a video via control API
 step('Create video with ID <videoId> and live chat ID <liveChatId>', async function (videoId, liveChatId) {
-  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  if (!restServerAddress) {
-    throw new Error('REST server address not set');
+  const healthServerAddress = gauge.dataStore.specStore.get('healthServerAddress');
+  if (!healthServerAddress) {
+    throw new Error('Health server address not set');
   }
 
-  const url = new URL('/control/videos', restServerAddress);
+  const url = new URL('/control/videos', healthServerAddress);
   const videoData = {
     id: videoId,
     channelId: 'test-channel-1',
@@ -205,12 +212,12 @@ step('Create video with ID <videoId> and live chat ID <liveChatId>', async funct
 
 // Create chat messages from table
 step('Create chat messages from table', async function (table) {
-  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  if (!restServerAddress) {
-    throw new Error('REST server address not set');
+  const healthServerAddress = gauge.dataStore.specStore.get('healthServerAddress');
+  if (!healthServerAddress) {
+    throw new Error('Health server address not set');
   }
 
-  const url = new URL('/control/chat_messages', restServerAddress);
+  const url = new URL('/control/chat_messages', healthServerAddress);
   
   // Get the live chat ID from the scenario store (set by previous video creation)
   // For now, we'll use a consistent ID from the spec
@@ -724,12 +731,12 @@ step('Verify stream starts successfully', async function () {
 // Control Endpoints Steps
 
 // Helper function to make HTTP POST requests to the control API
-async function makeControlRequest(restServerAddress, path, body) {
-  if (!restServerAddress) {
-    throw new Error('REST server address not set. Please set REST_SERVER_ADDRESS environment variable or use default.');
+async function makeControlRequest(serverAddress, path, body) {
+  if (!serverAddress) {
+    throw new Error('Server address not set. Please set HEALTH_SERVER_ADDRESS environment variable or use default.');
   }
 
-  const url = new URL(path, restServerAddress);
+  const url = new URL(path, serverAddress);
   
   console.log(`Making POST request to: ${url.toString()}`);
   console.log(`Request body: ${JSON.stringify(body)}`);
@@ -755,7 +762,10 @@ async function makeControlRequest(restServerAddress, path, body) {
 
 // Create video via control endpoint
 step('Create video via control endpoint with id <videoId> and liveChatId <liveChatId>', async function (videoId, liveChatId) {
-  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  const healthServerAddress = gauge.dataStore.specStore.get('healthServerAddress');
+  if (!healthServerAddress) {
+    throw new Error('Health server address not set');
+  }
   const requestBody = {
     id: videoId,
     channelId: 'test-channel',
@@ -768,13 +778,16 @@ step('Create video via control endpoint with id <videoId> and liveChatId <liveCh
     concurrentViewers: 100
   };
 
-  await makeControlRequest(restServerAddress, '/control/videos', requestBody);
+  await makeControlRequest(healthServerAddress, '/control/videos', requestBody);
   console.log(`Created video with id: ${videoId}`);
 });
 
 // Create chat message via control endpoint
 step('Create chat message via control endpoint with id <messageId> and liveChatId <liveChatId>', async function (messageId, liveChatId) {
-  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  const healthServerAddress = gauge.dataStore.specStore.get('healthServerAddress');
+  if (!healthServerAddress) {
+    throw new Error('Health server address not set');
+  }
   const requestBody = {
     id: messageId,
     liveChatId: liveChatId,
@@ -785,13 +798,16 @@ step('Create chat message via control endpoint with id <messageId> and liveChatI
     isVerified: true
   };
 
-  await makeControlRequest(restServerAddress, '/control/chat_messages', requestBody);
+  await makeControlRequest(healthServerAddress, '/control/chat_messages', requestBody);
   console.log(`Created chat message with id: ${messageId}`);
 });
 
 // Create video via control endpoint without publishedAt (uses default current datetime)
 step('Create video via control endpoint without publishedAt with id <videoId> and liveChatId <liveChatId>', async function (videoId, liveChatId) {
-  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  const healthServerAddress = gauge.dataStore.specStore.get('healthServerAddress');
+  if (!healthServerAddress) {
+    throw new Error('Health server address not set');
+  }
   const requestBody = {
     id: videoId,
     channelId: 'test-channel',
@@ -802,13 +818,16 @@ step('Create video via control endpoint without publishedAt with id <videoId> an
     concurrentViewers: 100
   };
 
-  await makeControlRequest(restServerAddress, '/control/videos', requestBody);
+  await makeControlRequest(healthServerAddress, '/control/videos', requestBody);
   console.log(`Created video with id: ${videoId} without publishedAt (using default datetime)`);
 });
 
 // Create chat message via control endpoint without publishedAt (uses default current datetime)
 step('Create chat message via control endpoint without publishedAt with id <messageId> and liveChatId <liveChatId>', async function (messageId, liveChatId) {
-  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  const healthServerAddress = gauge.dataStore.specStore.get('healthServerAddress');
+  if (!healthServerAddress) {
+    throw new Error('Health server address not set');
+  }
   const requestBody = {
     id: messageId,
     liveChatId: liveChatId,
@@ -818,7 +837,7 @@ step('Create chat message via control endpoint without publishedAt with id <mess
     isVerified: true
   };
 
-  await makeControlRequest(restServerAddress, '/control/chat_messages', requestBody);
+  await makeControlRequest(healthServerAddress, '/control/chat_messages', requestBody);
   console.log(`Created chat message with id: ${messageId} without publishedAt (using default datetime)`);
 });
 

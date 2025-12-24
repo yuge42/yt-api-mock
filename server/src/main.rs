@@ -147,11 +147,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Nest routers under their respective paths to avoid conflicts
     let rest_app = Router::new()
-        .nest("/youtube/v3", video_router)
-        .nest("/control", control_router);
+        .nest("/youtube/v3", video_router);
 
     // Create a simple health check endpoint (always runs without TLS)
-    let health_app = Router::new().route("/healthz", axum::routing::get(|| async { "OK" }));
+    // Also include control endpoints on the same non-TLS port
+    let health_app = Router::new()
+        .route("/healthz", axum::routing::get(|| async { "OK" }))
+        .nest("/control", control_router);
 
     if use_tls {
         println!("TLS enabled");

@@ -27,4 +27,5 @@ services:
     environment:
       - GRPC_SERVER_ADDRESS=server:50051
       - REST_SERVER_ADDRESS=https://server:8080
+      - HEALTH_SERVER_ADDRESS=http://server:8081
     command: ["gauge", "run", "--tags", "tls", "specs/"]

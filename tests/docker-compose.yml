@@ -6,11 +6,13 @@ services:
     ports:
       - "50051:50051"
       - "8080:8080"
+      - "8081:8081"
     environment:
       - GRPC_BIND_ADDRESS=[::]:50051
       - REST_BIND_ADDRESS=[::]:8080
+      - HEALTH_BIND_ADDRESS=[::]:8081
     healthcheck:
-      test: ["CMD", "sh", "-c", "nc -z localhost 50051 && nc -z localhost 8080 || exit 1"]
+      test: ["CMD", "sh", "-c", "nc -z localhost 50051 && nc -z localhost 8080 && nc -z localhost 8081 || exit 1"]
       interval: 2s
       timeout: 5s
       retries: 10
@@ -28,6 +30,7 @@ services:
     environment:
       - GRPC_SERVER_ADDRESS=server:50051
       - REST_SERVER_ADDRESS=http://server:8080
+      - HEALTH_SERVER_ADDRESS=http://server:8081
     command: ["gauge", "run", "--tags", "core", "specs/"]
     networks:
       - yt-api-test

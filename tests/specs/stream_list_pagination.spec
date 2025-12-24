@@ -6,7 +6,7 @@ This specification tests the pagination functionality in the YouTube Live Chat s
 **Prerequisites**: The mock server must be running before executing this test.
 
 * gRPC server address from environment variable "GRPC_SERVER_ADDRESS" or default "localhost:50051"
-* REST server address from environment variable "REST_SERVER_ADDRESS" or default "localhost:8080"
+* Health server address from environment variable "HEALTH_SERVER_ADDRESS" or default "http://localhost:8081"
 
 ## Test streaming with pagination support
 

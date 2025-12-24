@@ -29,7 +29,7 @@ cargo run -p server
 The server runs three services:
 - **gRPC server** (live chat) listens on `[::1]:50051` by default
 - **REST server** (videos API) listens on `[::1]:8080` by default
-- **Health check endpoint** listens on `[::1]:8081` by default (always accessible without TLS)
+- **Health check and control endpoints** listen on `[::1]:8081` by default (always accessible without TLS)
 
 #### Configuration
 
@@ -46,6 +46,10 @@ The server provides a simple health check endpoint at `/healthz` that returns "O
 ```bash
 curl http://localhost:8081/healthz
 ```
+
+**Control Endpoints:**
+
+The server provides control endpoints on the same port as the health check endpoint (8081 by default). These endpoints are always accessible without TLS for creating videos and chat messages during testing:
 
 **Optional Authentication:**
 
@@ -236,11 +240,11 @@ Stream live chat messages using the Live Chat ID obtained from the videos.list e
 
 ### Control Endpoints (REST)
 
-The server provides control endpoints for dynamically creating videos and chat messages during testing:
+The server provides control endpoints for dynamically creating videos and chat messages during testing. These endpoints are always available on the non-TLS port (8081 by default), even when TLS is enabled for the main API endpoints.
 
 **Create a new video:**
 ```bash
-curl -X POST http://localhost:8080/control/videos \
+curl -X POST http://localhost:8081/control/videos \
   -H "Content-Type: application/json" \
   -d '{
     "id": "my-video-id",
@@ -257,7 +261,7 @@ curl -X POST http://localhost:8080/control/videos \
 
 **Create a new chat message:**
 ```bash
-curl -X POST http://localhost:8080/control/chat_messages \
+curl -X POST http://localhost:8081/control/chat_messages \
   -H "Content-Type: application/json" \
   -d '{
     "id": "my-message-id",
@@ -280,7 +284,7 @@ All datetime fields (`publishedAt`, `actualStartTime`, `actualEndTime`, `schedul
 
 Example with default datetime:
 ```bash
-curl -X POST http://localhost:8080/control/videos \
+curl -X POST http://localhost:8081/control/videos \
   -H "Content-Type: application/json" \
   -d '{
     "id": "my-video-id",
