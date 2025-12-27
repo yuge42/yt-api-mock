@@ -97,10 +97,14 @@ impl V3DataLiveChatMessageService for LiveChatService {
         tokio::spawn(async move {
             let mut current_index = start_index;
             let stream_start = tokio::time::Instant::now();
+            let mut sent_any_response = false;
 
             loop {
                 // Get chat messages from the datastore filtered by live_chat_id
                 let messages = repo.get_chat_messages(&live_chat_id);
+
+                // Track if we sent any messages in this iteration
+                let mut sent_in_iteration = false;
 
                 // Send messages starting from current_index
                 for (i, msg) in messages.iter().enumerate().skip(current_index) {
@@ -156,8 +160,29 @@ impl V3DataLiveChatMessageService for LiveChatService {
                     }
 
                     current_index = i + 1;
+                    sent_in_iteration = true;
+                    sent_any_response = true;
                     // Yield to the scheduler to allow other tasks to run
                     tokio::task::yield_now().await;
+                }
+
+                // If no messages were sent in this iteration and we haven't sent any response yet,
+                // send an empty response to indicate the stream is active but has no items
+                if !sent_in_iteration && !sent_any_response {
+                    let next_page_token = Some(BASE64.encode(current_index.to_string().as_bytes()));
+                    
+                    let response = LiveChatMessageListResponse {
+                        kind: Some("youtube#liveChatMessageListResponse".to_string()),
+                        etag: Some("etag-empty".to_string()),
+                        items: vec![],
+                        next_page_token,
+                        ..Default::default()
+                    };
+
+                    if (tx.send(Ok(response)).await).is_err() {
+                        return; // Client disconnected
+                    }
+                    sent_any_response = true;
                 }
 
                 // Check if timeout has been reached
