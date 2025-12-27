@@ -173,7 +173,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
                     
                     let response = LiveChatMessageListResponse {
                         kind: Some("youtube#liveChatMessageListResponse".to_string()),
-                        etag: Some("etag-empty".to_string()),
+                        etag: Some(format!("etag-{}", current_index)),
                         items: vec![],
                         next_page_token,
                         ..Default::default()
