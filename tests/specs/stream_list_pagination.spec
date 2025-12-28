@@ -6,7 +6,7 @@ This specification tests the pagination functionality in the YouTube Live Chat s
 **Prerequisites**: The mock server must be running before executing this test.
 
 * gRPC server address from environment variable "GRPC_SERVER_ADDRESS" or default "localhost:50051"
-* REST server address from environment variable "REST_SERVER_ADDRESS" or default "localhost:8080"
+* REST server address from environment variable "REST_SERVER_ADDRESS" or default "http://localhost:8080"
 
 ## Test streaming with pagination support
 
@@ -67,5 +67,6 @@ This specification tests the pagination functionality in the YouTube Live Chat s
 * Use live chat ID "edge-case-test-chat"
 * Send StreamList request with page_token "100"
 * Receive stream of messages with timeout "3000" ms
-* Verify stream has no messages
+* Verify received "1" messages
+* Verify all responses have empty items
 * Close the connection

@@ -1079,6 +1079,22 @@ step('Verify stream has no messages', async function () {
   console.log('Verified stream has no messages');
 });
 
+// Verify all responses have empty items arrays
+step('Verify all responses have empty items', async function () {
+  const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
+  assert.ok(receivedMessages.length > 0, 'No messages received to verify');
+  
+  receivedMessages.forEach((message, index) => {
+    const items = message.getItemsList();
+    assert.strictEqual(
+      items.length,
+      0,
+      `Message ${index} should have empty items array but has ${items.length} items`
+    );
+  });
+  console.log(`Verified all ${receivedMessages.length} response(s) have empty items arrays`);
+});
+
 // Verify error with message containing specific text
 step('Verify error with message containing <text>', async function (text) {
   const streamError = gauge.dataStore.scenarioStore.get('streamError');
