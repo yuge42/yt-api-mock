@@ -170,7 +170,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
                 // send an empty response to indicate the stream is active but has no items
                 if !sent_in_iteration && !sent_any_response {
                     let next_page_token = Some(BASE64.encode(current_index.to_string().as_bytes()));
-                    
+
                     let response = LiveChatMessageListResponse {
                         kind: Some("youtube#liveChatMessageListResponse".to_string()),
                         etag: Some(format!("etag-{}", current_index)),
