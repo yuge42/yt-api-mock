@@ -1,12 +1,21 @@
 FROM node:24-slim
 
-# Install required packages including Gauge
+# Install required packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     unzip \
-    && curl -SsL https://downloads.gauge.org/stable | sh \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Gauge from zip archive (v1.6.22)
+# Using zip installer for reliability and version control
+RUN GAUGE_VERSION=1.6.22 && \
+    GAUGE_ARCH=linux.x86_64 && \
+    curl -L -o gauge.zip "https://github.com/getgauge/gauge/releases/download/v${GAUGE_VERSION}/gauge-${GAUGE_VERSION}-${GAUGE_ARCH}.zip" && \
+    unzip gauge.zip && \
+    chmod +x gauge && \
+    mv gauge /usr/local/bin/ && \
+    rm -f gauge.zip
 
 # Install Gauge JavaScript plugin
 RUN gauge install js
