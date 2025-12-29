@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Gauge from zip archive (v1.6.22)
 # Using zip installer for reliability and version control
+# Note: Architecture is hardcoded to linux.x86_64 for consistency with CI environment
+# For ARM64 support, change GAUGE_ARCH to linux.arm64
 RUN GAUGE_VERSION=1.6.22 && \
     GAUGE_ARCH=linux.x86_64 && \
     curl -L -o gauge.zip "https://github.com/getgauge/gauge/releases/download/v${GAUGE_VERSION}/gauge-${GAUGE_VERSION}-${GAUGE_ARCH}.zip" && \
