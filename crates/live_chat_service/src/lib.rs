@@ -186,10 +186,10 @@ impl V3DataLiveChatMessageService for LiveChatService {
                 }
 
                 // Check if timeout has been reached
-                if let Some(timeout) = stream_timeout {
-                    if stream_start.elapsed() >= timeout {
-                        break; // Timeout reached, close the stream
-                    }
+                if let Some(timeout) = stream_timeout
+                    && stream_start.elapsed() >= timeout
+                {
+                    break; // Timeout reached, close the stream
                 }
 
                 // If no timeout is configured or timeout not reached yet, keep polling for new messages

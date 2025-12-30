@@ -993,6 +993,18 @@ step('Receive first message and extract page_token', async function () {
   gauge.dataStore.scenarioStore.put('extractedPageToken', nextPageToken);
 });
 
+// Extract page_token from last message
+step('Extract page_token from last message', async function () {
+  const streamData = gauge.dataStore.scenarioStore.get('streamData');
+  const result = await awaitStreamCompletion(streamData, 5000);
+  
+  assert.ok(result.messages.length > 0, 'No messages received');
+  const lastMessage = result.messages[result.messages.length - 1];
+  const nextPageToken = lastMessage.getNextPageToken();
+  console.log(`Extracted next_page_token from last message: ${nextPageToken}`);
+  gauge.dataStore.scenarioStore.put('extractedPageToken', nextPageToken);
+});
+
 // Send StreamList request with extracted page_token
 step('Send StreamList request with extracted page_token', async function () {
   const client = gauge.dataStore.scenarioStore.get('client');
