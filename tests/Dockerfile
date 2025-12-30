@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Gauge version and checksum
 # Note: Architecture is hardcoded to linux.x86_64 for consistency with CI environment
 # For ARM64 support, change GAUGE_ARCH to linux.arm64 and update the checksum
+# Get checksums from: https://github.com/getgauge/gauge/releases
 ARG GAUGE_VERSION=1.6.22
 ARG GAUGE_ARCH=linux.x86_64
 ARG GAUGE_SHA256=4488b8241e7760af70a0b098a71b47f4922130bcad94f20c85b3c86c2048b8fb
