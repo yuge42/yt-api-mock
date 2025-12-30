@@ -83,6 +83,35 @@ async fn load_rustls_config(
     Ok(axum_server::tls_rustls::RustlsConfig::from_pem_file(cert_path, key_path).await?)
 }
 
+// Signal handler for graceful shutdown
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install SIGTERM handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {
+            println!("Received Ctrl+C signal, starting graceful shutdown...");
+        },
+        _ = terminate => {
+            println!("Received SIGTERM signal, starting graceful shutdown...");
+        },
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Install the default crypto provider for rustls (required for TLS)
@@ -174,7 +203,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Health check endpoint listening on {}", health_addr);
     }
 
-    // Run both servers concurrently
+    // Run all servers concurrently with graceful shutdown
     if use_tls {
         let cert_path =
             tls_cert_path.expect("TLS cert path should be present when use_tls is true");
@@ -186,48 +215,118 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Load TLS config for REST
         let rest_tls_config = load_rustls_config(cert_path, key_path).await?;
 
-        tokio::select! {
-            result = GrpcServer::builder()
-                .tls_config(grpc_tls_config)?
+        // Create a broadcast channel for shutdown signal
+        let (shutdown_tx, _) = tokio::sync::broadcast::channel::<()>(1);
+
+        // Clone shutdown signal receivers for each server
+        let grpc_shutdown_rx = shutdown_tx.subscribe();
+        let rest_shutdown_rx = shutdown_tx.subscribe();
+        let health_shutdown_rx = shutdown_tx.subscribe();
+
+        // Spawn gRPC server
+        let grpc_handle = tokio::spawn(async move {
+            let mut rx = grpc_shutdown_rx;
+            GrpcServer::builder()
+                .tls_config(grpc_tls_config)
+                .expect("Failed to configure TLS for gRPC server")
                 .layer(ServiceBuilder::new().layer(LogLayer))
                 .add_service(grpc_service)
                 .add_service(reflection_service)
-                .serve(grpc_addr) => {
-                result?;
-            }
-            result = axum_server::bind_rustls(rest_addr, rest_tls_config)
-                .serve(rest_app.into_make_service()) => {
-                result?;
-            }
-            result = axum::serve(
-                tokio::net::TcpListener::bind(health_addr).await?,
-                health_app
-            ) => {
-                result?;
-            }
-        }
+                .serve_with_shutdown(grpc_addr, async move {
+                    let _ = rx.recv().await;
+                })
+                .await
+        });
+
+        // Spawn REST server with axum-server handle for graceful shutdown
+        let rest_handle = tokio::spawn(async move {
+            let mut rx = rest_shutdown_rx;
+            let handle = axum_server::Handle::new();
+
+            // Spawn a task to listen for shutdown signal
+            let shutdown_handle = handle.clone();
+            tokio::spawn(async move {
+                let _ = rx.recv().await;
+                shutdown_handle.graceful_shutdown(None);
+            });
+
+            axum_server::bind_rustls(rest_addr, rest_tls_config)
+                .handle(handle)
+                .serve(rest_app.into_make_service())
+                .await
+        });
+
+        // Spawn health check server
+        let health_handle = tokio::spawn(async move {
+            let mut rx = health_shutdown_rx;
+            let listener = tokio::net::TcpListener::bind(health_addr).await?;
+            axum::serve(listener, health_app)
+                .with_graceful_shutdown(async move {
+                    let _ = rx.recv().await;
+                })
+                .await
+        });
+
+        // Wait for shutdown signal
+        shutdown_signal().await;
+
+        // Broadcast shutdown to all servers
+        let _ = shutdown_tx.send(());
+
+        // Wait for all servers to shut down gracefully
+        let _ = tokio::join!(grpc_handle, rest_handle, health_handle);
     } else {
-        tokio::select! {
-            result = GrpcServer::builder()
+        // Create a broadcast channel for shutdown signal
+        let (shutdown_tx, _) = tokio::sync::broadcast::channel::<()>(1);
+
+        // Clone shutdown signal receivers for each server
+        let grpc_shutdown_rx = shutdown_tx.subscribe();
+        let rest_shutdown_rx = shutdown_tx.subscribe();
+        let health_shutdown_rx = shutdown_tx.subscribe();
+
+        // Spawn gRPC server
+        let grpc_handle = tokio::spawn(async move {
+            let mut rx = grpc_shutdown_rx;
+            GrpcServer::builder()
                 .layer(ServiceBuilder::new().layer(LogLayer))
                 .add_service(grpc_service)
                 .add_service(reflection_service)
-                .serve(grpc_addr) => {
-                result?;
-            }
-            result = axum::serve(
-                tokio::net::TcpListener::bind(rest_addr).await?,
-                rest_app
-            ) => {
-                result?;
-            }
-            result = axum::serve(
-                tokio::net::TcpListener::bind(health_addr).await?,
-                health_app
-            ) => {
-                result?;
-            }
-        }
+                .serve_with_shutdown(grpc_addr, async move {
+                    let _ = rx.recv().await;
+                })
+                .await
+        });
+
+        // Spawn REST server
+        let rest_handle = tokio::spawn(async move {
+            let mut rx = rest_shutdown_rx;
+            let listener = tokio::net::TcpListener::bind(rest_addr).await?;
+            axum::serve(listener, rest_app)
+                .with_graceful_shutdown(async move {
+                    let _ = rx.recv().await;
+                })
+                .await
+        });
+
+        // Spawn health check server
+        let health_handle = tokio::spawn(async move {
+            let mut rx = health_shutdown_rx;
+            let listener = tokio::net::TcpListener::bind(health_addr).await?;
+            axum::serve(listener, health_app)
+                .with_graceful_shutdown(async move {
+                    let _ = rx.recv().await;
+                })
+                .await
+        });
+
+        // Wait for shutdown signal
+        shutdown_signal().await;
+
+        // Broadcast shutdown to all servers
+        let _ = shutdown_tx.send(());
+
+        // Wait for all servers to shut down gracefully
+        let _ = tokio::join!(grpc_handle, rest_handle, health_handle);
     }
 
     Ok(())
