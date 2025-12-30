@@ -997,7 +997,7 @@ step('Receive first message and extract page_token', async function () {
 step('Extract page_token from last message', async function () {
   const streamData = gauge.dataStore.scenarioStore.get('streamData');
   const result = await awaitStreamCompletion(streamData, 5000);
-  
+
   assert.ok(result.messages.length > 0, 'No messages received');
   const lastMessage = result.messages[result.messages.length - 1];
   const nextPageToken = lastMessage.getNextPageToken();
