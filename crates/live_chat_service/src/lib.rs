@@ -186,6 +186,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
                 }
 
                 // Check if timeout has been reached
+                #[allow(clippy::collapsible_if)]
                 if let Some(timeout) = stream_timeout {
                     if stream_start.elapsed() >= timeout {
                         break; // Timeout reached, close the stream

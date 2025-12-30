@@ -70,3 +70,41 @@ This specification tests the pagination functionality in the YouTube Live Chat s
 * Verify received "1" messages
 * Verify all responses have empty items
 * Close the connection
+
+## Test pagination with dynamically added messages
+
+This scenario tests that messages added via the control endpoint after pagination
+are correctly returned when resuming the stream with a pagination token.
+
+* Use live chat ID "dynamic-pagination-chat"
+* Create video with ID "dynamic-pagination-video" and live chat ID "dynamic-pagination-chat"
+* Create chat messages from table
+
+    |index|messageId         |
+    |-----|------------------|
+    |0    |dynamic-msg-id-0  |
+    |1    |dynamic-msg-id-1  |
+    |2    |dynamic-msg-id-2  |
+
+* Connect to the server
+* Send StreamList request with parts "snippet,authorDetails"
+* Receive stream of messages
+* Verify received "3" messages
+* Extract page_token from last message
+* Close the connection
+* Create chat messages from table
+
+    |index|messageId         |
+    |-----|------------------|
+    |3    |dynamic-msg-id-3  |
+    |4    |dynamic-msg-id-4  |
+    |5    |dynamic-msg-id-5  |
+
+* Connect to the server
+* Send StreamList request with extracted page_token
+* Receive stream of messages with timeout "3000" ms
+* Verify received "3" messages
+* Verify message with id "dynamic-msg-id-3" exists in stream
+* Verify message with id "dynamic-msg-id-4" exists in stream
+* Verify message with id "dynamic-msg-id-5" exists in stream
+* Close the connection
