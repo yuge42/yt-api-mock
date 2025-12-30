@@ -85,30 +85,19 @@ async fn load_rustls_config(
 
 // Signal handler for graceful shutdown
 async fn shutdown_signal() {
-    let ctrl_c = async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("failed to install Ctrl+C handler");
-    };
-
     #[cfg(unix)]
-    let terminate = async {
+    {
         tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
             .expect("failed to install SIGTERM handler")
             .recv()
             .await;
-    };
+        println!("Received SIGTERM signal, starting graceful shutdown...");
+    }
 
     #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        _ = ctrl_c => {
-            println!("Received Ctrl+C signal, starting graceful shutdown...");
-        },
-        _ = terminate => {
-            println!("Received SIGTERM signal, starting graceful shutdown...");
-        },
+    {
+        // On non-Unix platforms, wait indefinitely (no signal handling)
+        std::future::pending::<()>().await
     }
 }
 
