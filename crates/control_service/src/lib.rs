@@ -134,7 +134,7 @@ async fn create_chat_message_shorthand(
     State(repo): State<Arc<dyn datastore::Repository>>,
     Json(request): Json<CreateChatMessageShorthandRequest>,
 ) -> impl IntoResponse {
-    // Generate a unique ID using fake library
+    // Generate a unique ID using UUID
     let id = format!("msg-{}", uuid::Uuid::new_v4());
 
     // Use provided values or generate fake data

@@ -15,4 +15,3 @@ serde = { workspace = true }
 domain = { path = "../domain" }
 chrono = "0.4"
 fake = { workspace = true }
-rand = "0.8"
