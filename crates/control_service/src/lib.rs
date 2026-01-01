@@ -47,7 +47,7 @@ pub struct CreateChatMessageRequest {
 /// Missing fields will be auto-generated using the fake library
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateChatMessageGenerateRequest {
+pub struct GenerateChatMessageRequest {
     pub live_chat_id: String,
     #[serde(default)]
     pub message_text: Option<String>,
@@ -130,9 +130,9 @@ async fn create_chat_message(
 }
 
 /// Handler for generating a chat message with auto-generated fields
-async fn create_chat_message_generate(
+async fn generate_chat_message(
     State(repo): State<Arc<dyn datastore::Repository>>,
-    Json(request): Json<CreateChatMessageGenerateRequest>,
+    Json(request): Json<GenerateChatMessageRequest>,
 ) -> impl IntoResponse {
     // Generate a unique ID using UUID
     let id = format!("msg-{}", uuid::Uuid::new_v4());
@@ -160,7 +160,7 @@ async fn create_chat_message_generate(
     let response = CreateResponse {
         success: true,
         message: format!(
-            "Chat message '{}' created successfully with auto-generated fields",
+            "Chat message '{}' generated successfully with auto-generated fields",
             id
         ),
     };
@@ -173,9 +173,6 @@ pub fn create_router(repo: Arc<dyn datastore::Repository>) -> Router {
     Router::new()
         .route("/videos", post(create_video))
         .route("/chat_messages", post(create_chat_message))
-        .route(
-            "/chat_messages/generate",
-            post(create_chat_message_generate),
-        )
+        .route("/chat_messages/generate", post(generate_chat_message))
         .with_state(repo)
 }
