@@ -1,5 +1,8 @@
 use chrono::{TimeZone, Utc};
 use domain::{LiveChatMessage, Video};
+use fake::Fake;
+use fake::faker::internet::en::Username;
+use fake::faker::lorem::en::Sentence;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -65,14 +68,14 @@ impl InMemoryRepository {
 
         self.add_video(video1);
 
-        // Add dummy chat messages for live-chat-id-1
+        // Add dummy chat messages for live-chat-id-1 using fake library
         for i in 0..5 {
             let message = LiveChatMessage {
                 id: format!("msg-id-{}", i),
                 live_chat_id: "live-chat-id-1".to_string(),
                 author_channel_id: format!("channel-id-{}", i),
-                author_display_name: format!("User {}", i),
-                message_text: format!("Hello world {}", i),
+                author_display_name: Username().fake(),
+                message_text: Sentence(3..8).fake(),
                 published_at: fixed_time,
                 is_verified: true,
             };
@@ -326,12 +329,18 @@ mod tests {
         );
         assert_eq!(messages.len(), 5, "Should have 5 dummy messages");
 
-        // Verify message content
+        // Verify message content (uses fake data, so we check structure not exact values)
         for (i, message) in messages.iter().enumerate() {
             assert_eq!(message.id, format!("msg-id-{}", i));
             assert_eq!(message.live_chat_id, "live-chat-id-1");
-            assert_eq!(message.author_display_name, format!("User {}", i));
-            assert_eq!(message.message_text, format!("Hello world {}", i));
+            assert!(
+                !message.author_display_name.is_empty(),
+                "Author display name should not be empty"
+            );
+            assert!(
+                !message.message_text.is_empty(),
+                "Message text should not be empty"
+            );
             assert!(message.is_verified);
         }
     }

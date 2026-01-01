@@ -1,5 +1,8 @@
 use axum::{Json, Router, extract::State, http::StatusCode, response::IntoResponse, routing::post};
 use chrono::{DateTime, Utc};
+use fake::Fake;
+use fake::faker::internet::en::Username;
+use fake::faker::lorem::en::Sentence;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -38,6 +41,18 @@ pub struct CreateChatMessageRequest {
     #[serde(default = "default_datetime")]
     pub published_at: DateTime<Utc>,
     pub is_verified: bool,
+}
+
+/// Shorthand request body for creating a chat message with minimal fields
+/// Missing fields will be auto-generated using the fake library
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateChatMessageShorthandRequest {
+    pub live_chat_id: String,
+    #[serde(default)]
+    pub message_text: Option<String>,
+    #[serde(default)]
+    pub author_display_name: Option<String>,
 }
 
 /// Response for successful creation
@@ -114,10 +129,53 @@ async fn create_chat_message(
     (StatusCode::CREATED, Json(response)).into_response()
 }
 
+/// Handler for creating a chat message with shorthand (auto-generated fields)
+async fn create_chat_message_shorthand(
+    State(repo): State<Arc<dyn datastore::Repository>>,
+    Json(request): Json<CreateChatMessageShorthandRequest>,
+) -> impl IntoResponse {
+    // Generate a unique ID using fake library
+    let id = format!("msg-{}", uuid::Uuid::new_v4());
+
+    // Use provided values or generate fake data
+    let author_display_name = request
+        .author_display_name
+        .unwrap_or_else(|| Username().fake());
+    let message_text = request
+        .message_text
+        .unwrap_or_else(|| Sentence(3..10).fake());
+
+    let message = domain::LiveChatMessage {
+        id: id.clone(),
+        live_chat_id: request.live_chat_id,
+        author_channel_id: format!("channel-{}", uuid::Uuid::new_v4()),
+        author_display_name,
+        message_text,
+        published_at: Utc::now(),
+        is_verified: false,
+    };
+
+    repo.add_chat_message(message);
+
+    let response = CreateResponse {
+        success: true,
+        message: format!(
+            "Chat message '{}' created successfully with auto-generated fields",
+            id
+        ),
+    };
+
+    (StatusCode::CREATED, Json(response)).into_response()
+}
+
 /// Create the router for the control API
 pub fn create_router(repo: Arc<dyn datastore::Repository>) -> Router {
     Router::new()
         .route("/videos", post(create_video))
         .route("/chat_messages", post(create_chat_message))
+        .route(
+            "/chat_messages/shorthand",
+            post(create_chat_message_shorthand),
+        )
         .with_state(repo)
 }
