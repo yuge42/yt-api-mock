@@ -43,11 +43,11 @@ pub struct CreateChatMessageRequest {
     pub is_verified: bool,
 }
 
-/// Shorthand request body for creating a chat message with minimal fields
+/// Request body for generating a chat message with minimal fields
 /// Missing fields will be auto-generated using the fake library
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateChatMessageShorthandRequest {
+pub struct CreateChatMessageGenerateRequest {
     pub live_chat_id: String,
     #[serde(default)]
     pub message_text: Option<String>,
@@ -129,10 +129,10 @@ async fn create_chat_message(
     (StatusCode::CREATED, Json(response)).into_response()
 }
 
-/// Handler for creating a chat message with shorthand (auto-generated fields)
-async fn create_chat_message_shorthand(
+/// Handler for generating a chat message with auto-generated fields
+async fn create_chat_message_generate(
     State(repo): State<Arc<dyn datastore::Repository>>,
-    Json(request): Json<CreateChatMessageShorthandRequest>,
+    Json(request): Json<CreateChatMessageGenerateRequest>,
 ) -> impl IntoResponse {
     // Generate a unique ID using UUID
     let id = format!("msg-{}", uuid::Uuid::new_v4());
@@ -174,8 +174,8 @@ pub fn create_router(repo: Arc<dyn datastore::Repository>) -> Router {
         .route("/videos", post(create_video))
         .route("/chat_messages", post(create_chat_message))
         .route(
-            "/chat_messages/shorthand",
-            post(create_chat_message_shorthand),
+            "/chat_messages/generate",
+            post(create_chat_message_generate),
         )
         .with_state(repo)
 }

@@ -270,19 +270,19 @@ curl -X POST http://localhost:8080/control/chat_messages \
   }'
 ```
 
-**Create a chat message with shorthand (auto-generated fields):**
+**Generate a chat message with auto-generated fields:**
 
-For quick testing, you can use the shorthand endpoint which auto-generates missing fields using the [fake](https://github.com/cksac/fake-rs) library:
+For quick testing, you can use the generate endpoint which auto-generates missing fields using the [fake](https://github.com/cksac/fake-rs) library:
 
 ```bash
-curl -X POST http://localhost:8080/control/chat_messages/shorthand \
+curl -X POST http://localhost:8080/control/chat_messages/generate \
   -H "Content-Type: application/json" \
   -d '{
     "liveChatId": "my-chat-id"
   }'
 ```
 
-The shorthand endpoint accepts:
+The generate endpoint accepts:
 - `liveChatId` (required) - The chat ID to add the message to
 - `messageText` (optional) - Custom message text. If omitted, a random sentence is generated
 - `authorDisplayName` (optional) - Custom author name. If omitted, a random username is generated
@@ -291,11 +291,11 @@ Auto-generated fields:
 - `id` - Unique UUID-based message ID
 - `authorChannelId` - Unique UUID-based channel ID
 - `publishedAt` - Current datetime
-- `isVerified` - Always false for shorthand messages
+- `isVerified` - Always false for generated messages
 
 Example with custom fields:
 ```bash
-curl -X POST http://localhost:8080/control/chat_messages/shorthand \
+curl -X POST http://localhost:8080/control/chat_messages/generate \
   -H "Content-Type: application/json" \
   -d '{
     "liveChatId": "my-chat-id",
