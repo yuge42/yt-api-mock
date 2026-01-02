@@ -84,9 +84,16 @@ jobs:
         with:
           toolchain: 1.85
 
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Update Cargo.lock
         run: |
-          cargo update -p server --workspace
+          # Update Cargo.lock to reflect the version changes
+          # cargo check will update the lockfile as needed
+          cargo check --workspace
           echo "Updated Cargo.lock"
 
       - name: Create release branch
