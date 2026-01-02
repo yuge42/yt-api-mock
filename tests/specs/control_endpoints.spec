@@ -68,3 +68,50 @@ This specification tests the control endpoints for creating videos and chat mess
 * Verify chat message has valid publishedAt datetime
 * Verify chat message publishedAt is within "5" minutes
 * Close the connection
+
+## Test generating chat message with minimal fields
+
+* gRPC server address from environment variable "GRPC_SERVER_ADDRESS" or default "localhost:50051"
+* Create video via control endpoint with id "control-test-video-generate-1" and liveChatId "control-chat-generate-1"
+* Generate chat message with liveChatId "control-chat-generate-1"
+* Verify control response success is "true"
+* Verify control response message contains "generated successfully"
+* Store generated message id from response
+* Connect to the server
+* Send StreamList request with live chat id "control-chat-generate-1" and parts "snippet,authorDetails"
+* Receive stream of messages
+* Verify received "1" messages
+* Verify generated message exists in stream
+* Verify chat message has valid publishedAt datetime
+* Verify chat message publishedAt is within "5" minutes
+* Close the connection
+
+## Test generating chat message with custom fields
+
+* gRPC server address from environment variable "GRPC_SERVER_ADDRESS" or default "localhost:50051"
+* Create video via control endpoint with id "control-test-video-generate-2" and liveChatId "control-chat-generate-2"
+* Generate chat message with liveChatId "control-chat-generate-2", messageText "Custom generated message", and authorDisplayName "Custom Author"
+* Verify control response success is "true"
+* Verify control response message contains "generated successfully"
+* Store generated message id from response
+* Connect to the server
+* Send StreamList request with live chat id "control-chat-generate-2" and parts "snippet,authorDetails"
+* Receive stream of messages
+* Verify received "1" messages
+* Verify generated message exists in stream
+* Verify chat message text is "Custom generated message"
+* Verify chat message author display name is "Custom Author"
+* Close the connection
+
+## Test generating multiple chat messages
+
+* gRPC server address from environment variable "GRPC_SERVER_ADDRESS" or default "localhost:50051"
+* Create video via control endpoint with id "control-test-video-generate-multi" and liveChatId "control-chat-generate-multi"
+* Generate "3" chat messages with liveChatId "control-chat-generate-multi"
+* Connect to the server
+* Send StreamList request with live chat id "control-chat-generate-multi" and parts "snippet,authorDetails"
+* Receive stream of messages
+* Verify received "3" messages
+* Verify all messages have non-empty text
+* Verify all messages have non-empty author display names
+* Close the connection

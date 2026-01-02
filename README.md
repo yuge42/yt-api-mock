@@ -270,6 +270,40 @@ curl -X POST http://localhost:8080/control/chat_messages \
   }'
 ```
 
+**Generate a chat message with auto-generated fields:**
+
+For quick testing, you can use the generate endpoint which auto-generates missing fields using the [fake](https://github.com/cksac/fake-rs) library:
+
+```bash
+curl -X POST http://localhost:8080/control/chat_messages/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "liveChatId": "my-chat-id"
+  }'
+```
+
+The generate endpoint accepts:
+- `liveChatId` (required) - The chat ID to add the message to
+- `messageText` (optional) - Custom message text. If omitted, a random sentence is generated
+- `authorDisplayName` (optional) - Custom author name. If omitted, a random username is generated
+
+Auto-generated fields:
+- `id` - Unique UUID-based message ID
+- `authorChannelId` - Unique UUID-based channel ID
+- `publishedAt` - Current datetime
+- `isVerified` - Always false for generated messages
+
+Example with custom fields:
+```bash
+curl -X POST http://localhost:8080/control/chat_messages/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "liveChatId": "my-chat-id",
+    "messageText": "Custom message",
+    "authorDisplayName": "John Doe"
+  }'
+```
+
 **DateTime Handling:**
 
 All datetime fields (`publishedAt`, `actualStartTime`, `actualEndTime`, `scheduledStartTime`, `scheduledEndTime`) must be in ISO8601 format (e.g., `2024-01-01T00:00:00Z`). 

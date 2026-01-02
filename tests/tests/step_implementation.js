@@ -1183,3 +1183,167 @@ step('Request video via REST with TLS with id <videoId> and parts <parts>', asyn
   gauge.dataStore.scenarioStore.put('videoResponse', data);
   console.log(`Received TLS response with status ${statusCode}`);
 });
+
+// Generate chat message steps
+
+// Generate chat message with minimal fields (only liveChatId)
+step('Generate chat message with liveChatId <liveChatId>', async function (liveChatId) {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  const requestBody = {
+    liveChatId: liveChatId
+  };
+
+  await makeControlRequest(restServerAddress, '/control/chat_messages/generate', requestBody);
+  console.log(`Generated chat message for liveChatId: ${liveChatId}`);
+});
+
+// Generate chat message with custom fields
+step('Generate chat message with liveChatId <liveChatId>, messageText <messageText>, and authorDisplayName <authorDisplayName>', async function (liveChatId, messageText, authorDisplayName) {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  const requestBody = {
+    liveChatId: liveChatId,
+    messageText: messageText,
+    authorDisplayName: authorDisplayName
+  };
+
+  await makeControlRequest(restServerAddress, '/control/chat_messages/generate', requestBody);
+  console.log(`Generated chat message for liveChatId: ${liveChatId} with custom fields`);
+});
+
+// Generate multiple chat messages
+step('Generate <count> chat messages with liveChatId <liveChatId>', async function (count, liveChatId) {
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
+  const numMessages = parseInt(count, 10);
+  
+  console.log(`Generating ${numMessages} chat messages for liveChatId: ${liveChatId}`);
+  
+  for (let i = 0; i < numMessages; i++) {
+    const requestBody = {
+      liveChatId: liveChatId
+    };
+    
+    await makeControlRequest(restServerAddress, '/control/chat_messages/generate', requestBody);
+  }
+  
+  console.log(`Successfully generated ${numMessages} chat messages`);
+});
+
+// Store generated message id from control response
+step('Store generated message id from response', async function () {
+  const controlResponse = gauge.dataStore.scenarioStore.get('controlResponse');
+  assert.ok(controlResponse, 'No control response received');
+  assert.ok(controlResponse.message, 'No message in control response');
+  
+  // Extract message ID from response message (format: "Chat message 'msg-{uuid}' generated successfully...")
+  const match = controlResponse.message.match(/Chat message '([^']+)' generated successfully/);
+  assert.ok(match, `Could not extract message ID from response: ${controlResponse.message}`);
+  
+  const messageId = match[1];
+  gauge.dataStore.scenarioStore.put('generatedMessageId', messageId);
+  console.log(`Stored generated message ID: ${messageId}`);
+});
+
+// Verify generated message exists in stream
+step('Verify generated message exists in stream', async function () {
+  const messageId = gauge.dataStore.scenarioStore.get('generatedMessageId');
+  assert.ok(messageId, 'No generated message ID stored');
+  
+  const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
+  
+  let messageFound = false;
+  for (const response of receivedMessages) {
+    const items = response.getItemsList();
+    for (const item of items) {
+      if (item.getId() === messageId) {
+        messageFound = true;
+        // Store the message for further verification
+        gauge.dataStore.scenarioStore.put('foundGeneratedMessage', item);
+        break;
+      }
+    }
+    if (messageFound) break;
+  }
+  
+  assert.ok(messageFound, `Generated message with ID '${messageId}' not found in stream`);
+  console.log(`Verified generated message with id '${messageId}' exists in stream`);
+});
+
+// Verify chat message text
+step('Verify chat message text is <expectedText>', async function (expectedText) {
+  const message = gauge.dataStore.scenarioStore.get('foundGeneratedMessage');
+  assert.ok(message, 'No generated message found. Run "Verify generated message exists in stream" step first.');
+  
+  const snippet = message.getSnippet();
+  assert.ok(snippet, 'Message does not have snippet');
+  
+  const messageText = snippet.getDisplayMessage();
+  assert.strictEqual(
+    messageText,
+    expectedText,
+    `Message text is '${messageText}' but expected '${expectedText}'`
+  );
+  
+  console.log(`Verified chat message text: ${messageText}`);
+});
+
+// Verify chat message author display name
+step('Verify chat message author display name is <expectedName>', async function (expectedName) {
+  const message = gauge.dataStore.scenarioStore.get('foundGeneratedMessage');
+  assert.ok(message, 'No generated message found. Run "Verify generated message exists in stream" step first.');
+  
+  const authorDetails = message.getAuthorDetails();
+  assert.ok(authorDetails, 'Message does not have author details');
+  
+  const displayName = authorDetails.getDisplayName();
+  assert.strictEqual(
+    displayName,
+    expectedName,
+    `Author display name is '${displayName}' but expected '${expectedName}'`
+  );
+  
+  console.log(`Verified author display name: ${displayName}`);
+});
+
+// Verify all messages have non-empty text
+step('Verify all messages have non-empty text', async function () {
+  const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
+  
+  let totalMessages = 0;
+  for (const response of receivedMessages) {
+    const items = response.getItemsList();
+    for (const item of items) {
+      const snippet = item.getSnippet();
+      assert.ok(snippet, `Message ${item.getId()} does not have snippet`);
+      
+      const messageText = snippet.getDisplayMessage();
+      assert.ok(messageText, `Message ${item.getId()} has empty text`);
+      assert.ok(messageText.length > 0, `Message ${item.getId()} has empty text`);
+      
+      totalMessages++;
+    }
+  }
+  
+  console.log(`Verified ${totalMessages} messages have non-empty text`);
+});
+
+// Verify all messages have non-empty author display names
+step('Verify all messages have non-empty author display names', async function () {
+  const receivedMessages = gauge.dataStore.scenarioStore.get('receivedMessages') || [];
+  
+  let totalMessages = 0;
+  for (const response of receivedMessages) {
+    const items = response.getItemsList();
+    for (const item of items) {
+      const authorDetails = item.getAuthorDetails();
+      assert.ok(authorDetails, `Message ${item.getId()} does not have author details`);
+      
+      const displayName = authorDetails.getDisplayName();
+      assert.ok(displayName, `Message ${item.getId()} has empty author display name`);
+      assert.ok(displayName.length > 0, `Message ${item.getId()} has empty author display name`);
+      
+      totalMessages++;
+    }
+  }
+  
+  console.log(`Verified ${totalMessages} messages have non-empty author display names`);
+});

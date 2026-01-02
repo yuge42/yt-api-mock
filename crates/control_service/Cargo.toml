@@ -16,3 +16,5 @@ serde_json = { workspace = true }
 datastore = { path = "../datastore" }
 domain = { path = "../domain" }
 chrono = { version = "0.4", features = ["serde"] }
+fake = { workspace = true }
+uuid = { workspace = true }
