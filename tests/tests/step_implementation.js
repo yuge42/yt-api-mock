@@ -56,12 +56,14 @@ function buildVideoRequestBody(videoId, liveChatId, options = {}) {
     concurrentViewers: 100
   };
   
-  return {
-    id: videoId,
-    liveChatId: liveChatId,
-    ...defaults,
-    ...options
-  };
+  return Object.assign(
+    {
+      id: videoId,
+      liveChatId: liveChatId
+    },
+    defaults,
+    options
+  );
 }
 
 /**
@@ -80,12 +82,14 @@ function buildChatMessageRequestBody(messageId, liveChatId, options = {}) {
     isVerified: true
   };
   
-  return {
-    id: messageId,
-    liveChatId: liveChatId,
-    ...defaults,
-    ...options
-  };
+  return Object.assign(
+    {
+      id: messageId,
+      liveChatId: liveChatId
+    },
+    defaults,
+    options
+  );
 }
 
 /**
