@@ -39,6 +39,56 @@ function validateISO8601DateTime(datetimeValue, fieldName = 'publishedAt') {
 }
 
 /**
+ * Build a video request body for control endpoint
+ * @param {string} videoId - The video ID
+ * @param {string} liveChatId - The live chat ID
+ * @param {object} options - Optional fields to override defaults
+ * @returns {object} Video request body
+ */
+function buildVideoRequestBody(videoId, liveChatId, options = {}) {
+  const defaults = {
+    channelId: 'test-channel',
+    title: 'Test Video',
+    description: 'A test video created via control endpoint',
+    channelTitle: 'Test Channel',
+    publishedAt: '2024-01-01T00:00:00Z',
+    actualStartTime: '2024-01-01T00:00:00Z',
+    concurrentViewers: 100
+  };
+  
+  return {
+    id: videoId,
+    liveChatId: liveChatId,
+    ...defaults,
+    ...options
+  };
+}
+
+/**
+ * Build a chat message request body for control endpoint
+ * @param {string} messageId - The message ID
+ * @param {string} liveChatId - The live chat ID
+ * @param {object} options - Optional fields to override defaults
+ * @returns {object} Chat message request body
+ */
+function buildChatMessageRequestBody(messageId, liveChatId, options = {}) {
+  const defaults = {
+    authorChannelId: 'test-author',
+    authorDisplayName: 'Test Author',
+    messageText: 'Test message from control endpoint',
+    publishedAt: '2024-01-01T00:00:00Z',
+    isVerified: true
+  };
+  
+  return {
+    id: messageId,
+    liveChatId: liveChatId,
+    ...defaults,
+    ...options
+  };
+}
+
+/**
  * Validate that a datetime is recent (within specified minutes)
  * @param {string} datetimeValue - The datetime string to validate
  * @param {number} maxDiffMinutes - Maximum allowed time difference in minutes
@@ -169,48 +219,28 @@ async function makeRestRequest(restServerAddress, path, queryParams = {}, header
 // Create a video via control API
 step('Create video with ID <videoId> and live chat ID <liveChatId>', async function (videoId, liveChatId) {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  if (!restServerAddress) {
-    throw new Error('REST server address not set');
-  }
-
-  const url = new URL('/control/videos', restServerAddress);
-  const videoData = {
-    id: videoId,
+  const videoData = buildVideoRequestBody(videoId, liveChatId, {
     channelId: 'test-channel-1',
     title: 'Test Live Stream for Pagination',
     description: 'Testing pagination functionality',
-    channelTitle: 'Test Channel',
     publishedAt: '2023-01-01T00:00:00Z',
-    liveChatId: liveChatId,
     actualStartTime: '2023-01-01T00:00:00Z',
     actualEndTime: null,
     scheduledStartTime: '2023-01-01T00:00:00Z',
-    scheduledEndTime: null,
-    concurrentViewers: 100
-  };
-
-  console.log(`Creating video: ${videoId} with live chat ID: ${liveChatId}`);
-  const response = await fetch(url.toString(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(videoData)
+    scheduledEndTime: null
   });
 
-  const result = await response.json();
-  if (response.status !== 201) {
+  const { statusCode } = await makeControlRequest(restServerAddress, '/control/videos', videoData);
+  if (statusCode !== 201) {
+    const result = gauge.dataStore.scenarioStore.get('controlResponse');
     throw new Error(`Failed to create video: ${result.error || result.message}`);
   }
-  console.log(`Video created successfully: ${result.message}`);
+  console.log(`Created video with id: ${videoId}`);
 });
 
 // Create chat messages from table
 step('Create chat messages from table', async function (table) {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  if (!restServerAddress) {
-    throw new Error('REST server address not set');
-  }
-
-  const url = new URL('/control/chat_messages', restServerAddress);
   
   // Get the live chat ID from the scenario store (set by previous video creation)
   // For now, we'll use a consistent ID from the spec
@@ -223,24 +253,16 @@ step('Create chat messages from table', async function (table) {
     const index = row.getCell('index');
     const messageId = row.getCell('messageId');
     
-    const messageData = {
-      id: messageId,
-      liveChatId: liveChatId,
+    const messageData = buildChatMessageRequestBody(messageId, liveChatId, {
       authorChannelId: `test-author-${index}`,
       authorDisplayName: `Test User ${index}`,
       messageText: `Test message number ${index}`,
-      publishedAt: '2023-01-01T00:00:00Z',
-      isVerified: true
-    };
-
-    const response = await fetch(url.toString(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(messageData)
+      publishedAt: '2023-01-01T00:00:00Z'
     });
 
-    const result = await response.json();
-    if (response.status !== 201) {
+    const { statusCode } = await makeControlRequest(restServerAddress, '/control/chat_messages', messageData);
+    if (statusCode !== 201) {
+      const result = gauge.dataStore.scenarioStore.get('controlResponse');
       throw new Error(`Failed to create message ${messageId}: ${result.error || result.message}`);
     }
   }
@@ -756,17 +778,7 @@ async function makeControlRequest(restServerAddress, path, body) {
 // Create video via control endpoint
 step('Create video via control endpoint with id <videoId> and liveChatId <liveChatId>', async function (videoId, liveChatId) {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  const requestBody = {
-    id: videoId,
-    channelId: 'test-channel',
-    title: 'Test Video',
-    description: 'A test video created via control endpoint',
-    channelTitle: 'Test Channel',
-    publishedAt: '2024-01-01T00:00:00Z',
-    liveChatId: liveChatId,
-    actualStartTime: '2024-01-01T00:00:00Z',
-    concurrentViewers: 100
-  };
+  const requestBody = buildVideoRequestBody(videoId, liveChatId);
 
   await makeControlRequest(restServerAddress, '/control/videos', requestBody);
   console.log(`Created video with id: ${videoId}`);
@@ -775,15 +787,7 @@ step('Create video via control endpoint with id <videoId> and liveChatId <liveCh
 // Create chat message via control endpoint
 step('Create chat message via control endpoint with id <messageId> and liveChatId <liveChatId>', async function (messageId, liveChatId) {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  const requestBody = {
-    id: messageId,
-    liveChatId: liveChatId,
-    authorChannelId: 'test-author',
-    authorDisplayName: 'Test Author',
-    messageText: 'Test message from control endpoint',
-    publishedAt: '2024-01-01T00:00:00Z',
-    isVerified: true
-  };
+  const requestBody = buildChatMessageRequestBody(messageId, liveChatId);
 
   await makeControlRequest(restServerAddress, '/control/chat_messages', requestBody);
   console.log(`Created chat message with id: ${messageId}`);
@@ -792,15 +796,13 @@ step('Create chat message via control endpoint with id <messageId> and liveChatI
 // Create video via control endpoint without publishedAt (uses default current datetime)
 step('Create video via control endpoint without publishedAt with id <videoId> and liveChatId <liveChatId>', async function (videoId, liveChatId) {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  const requestBody = {
-    id: videoId,
-    channelId: 'test-channel',
+  const requestBody = buildVideoRequestBody(videoId, liveChatId, {
     title: 'Test Video with Default DateTime',
     description: 'A test video created via control endpoint without publishedAt',
-    channelTitle: 'Test Channel',
-    liveChatId: liveChatId,
-    concurrentViewers: 100
-  };
+    publishedAt: undefined // Explicitly omit publishedAt
+  });
+  // Remove undefined fields to not send them in the request
+  Object.keys(requestBody).forEach(key => requestBody[key] === undefined && delete requestBody[key]);
 
   await makeControlRequest(restServerAddress, '/control/videos', requestBody);
   console.log(`Created video with id: ${videoId} without publishedAt (using default datetime)`);
@@ -809,14 +811,12 @@ step('Create video via control endpoint without publishedAt with id <videoId> an
 // Create chat message via control endpoint without publishedAt (uses default current datetime)
 step('Create chat message via control endpoint without publishedAt with id <messageId> and liveChatId <liveChatId>', async function (messageId, liveChatId) {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  const requestBody = {
-    id: messageId,
-    liveChatId: liveChatId,
-    authorChannelId: 'test-author',
-    authorDisplayName: 'Test Author',
+  const requestBody = buildChatMessageRequestBody(messageId, liveChatId, {
     messageText: 'Test message from control endpoint without publishedAt',
-    isVerified: true
-  };
+    publishedAt: undefined // Explicitly omit publishedAt
+  });
+  // Remove undefined fields to not send them in the request
+  Object.keys(requestBody).forEach(key => requestBody[key] === undefined && delete requestBody[key]);
 
   await makeControlRequest(restServerAddress, '/control/chat_messages', requestBody);
   console.log(`Created chat message with id: ${messageId} without publishedAt (using default datetime)`);
