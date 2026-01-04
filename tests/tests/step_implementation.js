@@ -93,6 +93,16 @@ function buildChatMessageRequestBody(messageId, liveChatId, options = {}) {
 }
 
 /**
+ * Remove undefined fields from an object
+ * @param {object} obj - Object to filter
+ * @returns {object} Object with undefined fields removed
+ */
+function removeUndefinedFields(obj) {
+  Object.keys(obj).forEach(key => obj[key] === undefined && delete obj[key]);
+  return obj;
+}
+
+/**
  * Validate that a datetime is recent (within specified minutes)
  * @param {string} datetimeValue - The datetime string to validate
  * @param {number} maxDiffMinutes - Maximum allowed time difference in minutes
@@ -800,13 +810,13 @@ step('Create chat message via control endpoint with id <messageId> and liveChatI
 // Create video via control endpoint without publishedAt (uses default current datetime)
 step('Create video via control endpoint without publishedAt with id <videoId> and liveChatId <liveChatId>', async function (videoId, liveChatId) {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  const requestBody = buildVideoRequestBody(videoId, liveChatId, {
-    title: 'Test Video with Default DateTime',
-    description: 'A test video created via control endpoint without publishedAt',
-    publishedAt: undefined // Explicitly omit publishedAt
-  });
-  // Remove undefined fields to not send them in the request
-  Object.keys(requestBody).forEach(key => requestBody[key] === undefined && delete requestBody[key]);
+  const requestBody = removeUndefinedFields(
+    buildVideoRequestBody(videoId, liveChatId, {
+      title: 'Test Video with Default DateTime',
+      description: 'A test video created via control endpoint without publishedAt',
+      publishedAt: undefined // Explicitly omit publishedAt
+    })
+  );
 
   await makeControlRequest(restServerAddress, '/control/videos', requestBody);
   console.log(`Created video with id: ${videoId} without publishedAt (using default datetime)`);
@@ -815,12 +825,12 @@ step('Create video via control endpoint without publishedAt with id <videoId> an
 // Create chat message via control endpoint without publishedAt (uses default current datetime)
 step('Create chat message via control endpoint without publishedAt with id <messageId> and liveChatId <liveChatId>', async function (messageId, liveChatId) {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  const requestBody = buildChatMessageRequestBody(messageId, liveChatId, {
-    messageText: 'Test message from control endpoint without publishedAt',
-    publishedAt: undefined // Explicitly omit publishedAt
-  });
-  // Remove undefined fields to not send them in the request
-  Object.keys(requestBody).forEach(key => requestBody[key] === undefined && delete requestBody[key]);
+  const requestBody = removeUndefinedFields(
+    buildChatMessageRequestBody(messageId, liveChatId, {
+      messageText: 'Test message from control endpoint without publishedAt',
+      publishedAt: undefined // Explicitly omit publishedAt
+    })
+  );
 
   await makeControlRequest(restServerAddress, '/control/chat_messages', requestBody);
   console.log(`Created chat message with id: ${messageId} without publishedAt (using default datetime)`);
