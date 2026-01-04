@@ -95,11 +95,15 @@ function buildChatMessageRequestBody(messageId, liveChatId, options = {}) {
 /**
  * Remove undefined fields from an object
  * @param {object} obj - Object to filter
- * @returns {object} Object with undefined fields removed
+ * @returns {object} New object with undefined fields removed
  */
 function removeUndefinedFields(obj) {
-  Object.keys(obj).forEach(key => obj[key] === undefined && delete obj[key]);
-  return obj;
+  return Object.keys(obj).reduce((result, key) => {
+    if (obj[key] !== undefined) {
+      result[key] = obj[key];
+    }
+    return result;
+  }, {});
 }
 
 /**
@@ -247,7 +251,7 @@ step('Create video with ID <videoId> and live chat ID <liveChatId>', async funct
   const { statusCode } = await makeControlRequest(restServerAddress, '/control/videos', videoData);
   if (statusCode !== 201) {
     const result = gauge.dataStore.scenarioStore.get('controlResponse');
-    throw new Error(`Failed to create video: ${result.error || result.message}`);
+    throw new Error(`Failed to create video: ${result ? (result.error || result.message) : 'Unknown error'}`);
   }
   console.log(`Created video with id: ${videoId}`);
 });
@@ -277,7 +281,7 @@ step('Create chat messages from table', async function (table) {
     const { statusCode } = await makeControlRequest(restServerAddress, '/control/chat_messages', messageData);
     if (statusCode !== 201) {
       const result = gauge.dataStore.scenarioStore.get('controlResponse');
-      throw new Error(`Failed to create message ${messageId}: ${result.error || result.message}`);
+      throw new Error(`Failed to create message ${messageId}: ${result ? (result.error || result.message) : 'Unknown error'}`);
     }
   }
   
