@@ -112,18 +112,18 @@ jobs:
           git commit -m "chore: bump version to $NEW_VERSION"
           echo "Committed version changes"
 
+      - name: Push release branch
+        run: |
+          BRANCH_NAME="${{ steps.create_branch.outputs.branch }}"
+          git push origin "$BRANCH_NAME"
+          echo "Pushed branch: $BRANCH_NAME"
+
       - name: Create and push tag
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.version }}"
           git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
           git push origin "v$NEW_VERSION"
           echo "Created and pushed tag v$NEW_VERSION"
-
-      - name: Push release branch
-        run: |
-          BRANCH_NAME="${{ steps.create_branch.outputs.branch }}"
-          git push origin "$BRANCH_NAME"
-          echo "Pushed branch: $BRANCH_NAME"
 
       - name: Create Pull Request
         env:
