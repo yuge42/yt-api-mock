@@ -35,7 +35,7 @@ jobs:
         id: version
         run: |
           # Get the most recent version tag (v*.*.*)
-          TAG_NAME=$(git tag --list 'v*.*.*' --sort=-version:refname | head -n1)
+          TAG_NAME=$(git describe --tags --match='v*.*.*' --abbrev=0)
           if [ -z "$TAG_NAME" ]; then
             echo "Error: No version tag found matching v*.*.*"
             exit 1
