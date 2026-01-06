@@ -18,8 +18,11 @@ jobs:
   build-and-release:
     name: Build and Release
     runs-on: ubuntu-latest
-    # Only run if the versioning workflow succeeded and ran on main branch
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    # Only run if the versioning workflow succeeded, ran on main branch, and from the correct repository
+    if: |
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.repository.full_name == github.repository
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
