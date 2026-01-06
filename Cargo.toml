@@ -30,4 +30,4 @@ repository = "https://github.com/yuge42/yt-api-mock"
 readme = "README.md"
 authors = ["yuge42"]
 description = "YouTube API mock server"
-version = "0.1.1"
+version = "0.1.2"
