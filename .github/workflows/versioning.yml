@@ -142,9 +142,9 @@ jobs:
           - Updated Cargo.lock
 
           ## Release
-          The tag v$VERSION has been created and pushed, which will trigger
-          the release workflow to build and publish the Docker image and
-          create a GitHub release.
+          The tag v$VERSION has been created and pushed. The release workflow
+          will be automatically triggered after this versioning workflow completes
+          successfully to build and publish the Docker image and create a GitHub release.
           EOFPR
 
           sed -i "s/\$VERSION/$NEW_VERSION/g" pr_body.md
