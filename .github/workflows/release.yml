@@ -29,13 +29,17 @@ jobs:
           ref: main
 
       - name: Fetch all tags
-        run: git fetch --tags --force
+        run: git fetch --tags
 
       - name: Extract version from latest tag
         id: version
         run: |
-          # Get the most recent tag
-          TAG_NAME=$(git describe --tags --abbrev=0)
+          # Get the most recent version tag (v*.*.*)
+          TAG_NAME=$(git tag --list 'v*.*.*' --sort=-version:refname | head -n1)
+          if [ -z "$TAG_NAME" ]; then
+            echo "Error: No version tag found matching v*.*.*"
+            exit 1
+          fi
           VERSION=${TAG_NAME#v}
           echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
