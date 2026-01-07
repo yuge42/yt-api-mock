@@ -18,10 +18,9 @@ jobs:
   build-and-release:
     name: Build and Release
     runs-on: ubuntu-latest
-    # Only run if the versioning workflow succeeded, ran on main branch, and from the correct repository
+    # Only run if the versioning workflow succeeded and from the correct repository
     if: |
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.repository.full_name == github.repository
     steps:
       - name: Checkout code
@@ -29,7 +28,7 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
-          ref: main
+          ref: ${{ github.event.workflow_run.head_branch }}
 
       - name: Fetch all tags
         run: git fetch --tags
