@@ -1,9 +1,10 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  workflow_run:
+    workflows: ["Versioning"]
+    types:
+      - completed
 
 env:
   REGISTRY: ghcr.io
@@ -17,16 +18,30 @@ jobs:
   build-and-release:
     name: Build and Release
     runs-on: ubuntu-latest
+    # Only run if the versioning workflow succeeded and from the correct repository
+    if: |
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.repository.full_name == github.repository
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_branch }}
 
-      - name: Extract version from tag
+      - name: Fetch all tags
+        run: git fetch --tags
+
+      - name: Extract version from latest tag
         id: version
         run: |
-          TAG_NAME=${GITHUB_REF#refs/tags/}
+          # Get the most recent version tag (v*.*.*)
+          TAG_NAME=$(git tag --list --sort=-version:refname 'v*.*.*' | head -n1)
+          if [ -z "$TAG_NAME" ]; then
+            echo "Error: No version tag found matching v*.*.*"
+            exit 1
+          fi
           VERSION=${TAG_NAME#v}
           echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -48,9 +63,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=raw,value=${{ steps.version.outputs.version }}
             type=raw,value=latest
 
       - name: Build and push Docker image
