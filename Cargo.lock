@@ -747,6 +747,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "oauth_service"
+version = "0.1.3"
+dependencies = [
+ "axum",
+ "chrono",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1136,6 +1147,7 @@ dependencies = [
  "datastore",
  "http",
  "live_chat_service",
+ "oauth_service",
  "rustls",
  "tokio",
  "tonic",

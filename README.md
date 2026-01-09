@@ -234,6 +234,65 @@ Stream live chat messages using the Live Chat ID obtained from the videos.list e
 - Follows YouTube's live chat message format
 - Compatible with gRPC clients
 
+### OAuth2 Token Generation (REST)
+
+The server provides a mock OAuth2 token generation and refresh service for testing authentication flows:
+- Generate dummy access tokens and refresh tokens
+- Support for both `authorization_code` and `refresh_token` grant types
+- Custom token expiry times (including negative values for testing expired tokens)
+- Compatible with Google OAuth2 token endpoint format
+- Access via HTTP POST at `/oauth2/token`
+
+**Generate an access token with authorization code:**
+```bash
+curl -X POST http://localhost:8080/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code&code=YOUR_AUTH_CODE&client_id=YOUR_CLIENT_ID&redirect_uri=YOUR_REDIRECT_URI"
+```
+
+Response:
+```json
+{
+  "access_token": "ya29.mock_04e92023-3912-43f3-9832-7a344a5109f2",
+  "refresh_token": "1//mock_074bb430-d5c3-40c6-8fe5-98e0f880740d",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "https://www.googleapis.com/auth/youtube.readonly"
+}
+```
+
+**Refresh an access token:**
+```bash
+curl -X POST http://localhost:8080/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=refresh_token&refresh_token=YOUR_REFRESH_TOKEN"
+```
+
+Response:
+```json
+{
+  "access_token": "ya29.mock_6e945888-f9aa-4ae6-8f89-22498a6be7cb",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "https://www.googleapis.com/auth/youtube.readonly"
+}
+```
+
+**Generate a token with custom expiry (including expired tokens):**
+```bash
+# Token expiring in 2 hours
+curl -X POST http://localhost:8080/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code&code=test&expires_in=7200"
+
+# Already expired token (for testing expired token handling)
+curl -X POST http://localhost:8080/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code&code=test&expires_in=-3600"
+```
+
+**Note:** The mock OAuth service does not validate credentials. It only checks for the presence of required parameters and returns dummy tokens suitable for testing.
+
 ### Control Endpoints (REST)
 
 The server provides control endpoints for dynamically creating videos and chat messages during testing:

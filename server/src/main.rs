@@ -163,10 +163,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create control service for managing videos and chat messages
     let control_router = control_service::create_router(Arc::clone(&repo));
 
+    // Create OAuth service for token generation and refresh
+    let oauth_router = oauth_service::create_router();
+
     // Nest routers under their respective paths to avoid conflicts
     let rest_app = Router::new()
         .nest("/youtube/v3", video_router)
-        .nest("/control", control_router);
+        .nest("/control", control_router)
+        .nest("/oauth2", oauth_router);
 
     // Create a simple health check endpoint (always runs without TLS)
     let health_app = Router::new().route("/healthz", axum::routing::get(|| async { "OK" }));
