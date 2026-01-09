@@ -9,6 +9,7 @@ tokio = { workspace = true }
 live_chat_service = { path = "../crates/live_chat_service" }
 video_service = { path = "../crates/video_service" }
 control_service = { path = "../crates/control_service" }
+oauth_service = { path = "../crates/oauth_service" }
 datastore = { path = "../crates/datastore" }
 tonic-reflection = { workspace = true }
 tower = "0.5"
