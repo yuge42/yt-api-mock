@@ -1365,3 +1365,295 @@ step('Verify all messages have non-empty author display names', async function (
   
   console.log(`Verified ${totalMessages} messages have non-empty author display names`);
 });
+
+// ============================================================================
+// OAuth Token Steps
+// ============================================================================
+
+// Generate OAuth token with authorization code
+step('Generate OAuth token with authorization code <authCode>', async function (authCode) {
+  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const url = new URL('/oauth2/token', restServerAddress);
+  
+  const params = new URLSearchParams();
+  params.append('grant_type', 'authorization_code');
+  params.append('code', authCode);
+  params.append('client_id', 'test_client');
+  params.append('redirect_uri', 'http://localhost');
+  
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params.toString()
+  });
+  
+  const data = await response.json();
+  gauge.dataStore.scenarioStore.put('oauthResponse', data);
+  gauge.dataStore.scenarioStore.put('oauthStatusCode', response.status);
+  
+  console.log(`Generated OAuth token with authorization code: ${authCode}`);
+  console.log(`Response: ${JSON.stringify(data, null, 2)}`);
+});
+
+// Generate OAuth token with authorization code and custom expiry
+step('Generate OAuth token with authorization code <authCode> and expires in <expiresIn>', async function (authCode, expiresIn) {
+  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const url = new URL('/oauth2/token', restServerAddress);
+  
+  const params = new URLSearchParams();
+  params.append('grant_type', 'authorization_code');
+  params.append('code', authCode);
+  params.append('expires_in', expiresIn);
+  
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params.toString()
+  });
+  
+  const data = await response.json();
+  gauge.dataStore.scenarioStore.put('oauthResponse', data);
+  gauge.dataStore.scenarioStore.put('oauthStatusCode', response.status);
+  
+  console.log(`Generated OAuth token with authorization code: ${authCode} and expires_in: ${expiresIn}`);
+  console.log(`Response: ${JSON.stringify(data, null, 2)}`);
+});
+
+// Generate OAuth token with grant type (for error testing)
+step('Generate OAuth token with grant type <grantType>', async function (grantType) {
+  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const url = new URL('/oauth2/token', restServerAddress);
+  
+  const params = new URLSearchParams();
+  params.append('grant_type', grantType);
+  
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params.toString()
+  });
+  
+  const data = await response.json();
+  gauge.dataStore.scenarioStore.put('oauthResponse', data);
+  gauge.dataStore.scenarioStore.put('oauthStatusCode', response.status);
+  
+  console.log(`Generated OAuth token with grant type: ${grantType}`);
+  console.log(`Response: ${JSON.stringify(data, null, 2)}`);
+});
+
+// Generate OAuth token with grant type and no code (for error testing)
+step('Generate OAuth token with grant type <grantType> and no code', async function (grantType) {
+  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const url = new URL('/oauth2/token', restServerAddress);
+  
+  const params = new URLSearchParams();
+  params.append('grant_type', grantType);
+  
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params.toString()
+  });
+  
+  const data = await response.json();
+  gauge.dataStore.scenarioStore.put('oauthResponse', data);
+  gauge.dataStore.scenarioStore.put('oauthStatusCode', response.status);
+  
+  console.log(`Attempted OAuth token generation with grant type: ${grantType} and no code`);
+  console.log(`Response: ${JSON.stringify(data, null, 2)}`);
+});
+
+// Generate OAuth token with grant type and no refresh token (for error testing)
+step('Generate OAuth token with grant type <grantType> and no refresh token', async function (grantType) {
+  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const url = new URL('/oauth2/token', restServerAddress);
+  
+  const params = new URLSearchParams();
+  params.append('grant_type', grantType);
+  
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params.toString()
+  });
+  
+  const data = await response.json();
+  gauge.dataStore.scenarioStore.put('oauthResponse', data);
+  gauge.dataStore.scenarioStore.put('oauthStatusCode', response.status);
+  
+  console.log(`Attempted OAuth token generation with grant type: ${grantType} and no refresh token`);
+  console.log(`Response: ${JSON.stringify(data, null, 2)}`);
+});
+
+// Store refresh token from OAuth response
+step('Store refresh token from OAuth response', async function () {
+  const response = gauge.dataStore.scenarioStore.get('oauthResponse');
+  assert.ok(response, 'No OAuth response found');
+  assert.ok(response.refresh_token, 'OAuth response does not have refresh_token');
+  
+  gauge.dataStore.scenarioStore.put('storedRefreshToken', response.refresh_token);
+  console.log(`Stored refresh token: ${response.refresh_token}`);
+});
+
+// Refresh OAuth token using stored refresh token
+step('Refresh OAuth token using stored refresh token', async function () {
+  const refreshToken = gauge.dataStore.scenarioStore.get('storedRefreshToken');
+  assert.ok(refreshToken, 'No stored refresh token found');
+  
+  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const url = new URL('/oauth2/token', restServerAddress);
+  
+  const params = new URLSearchParams();
+  params.append('grant_type', 'refresh_token');
+  params.append('refresh_token', refreshToken);
+  
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params.toString()
+  });
+  
+  const data = await response.json();
+  gauge.dataStore.scenarioStore.put('oauthResponse', data);
+  gauge.dataStore.scenarioStore.put('oauthStatusCode', response.status);
+  
+  console.log(`Refreshed OAuth token using refresh token`);
+  console.log(`Response: ${JSON.stringify(data, null, 2)}`);
+});
+
+// Verify OAuth response has access token
+step('Verify OAuth response has access token', async function () {
+  const response = gauge.dataStore.scenarioStore.get('oauthResponse');
+  assert.ok(response, 'No OAuth response found');
+  assert.ok(response.access_token, 'OAuth response does not have access_token');
+  assert.ok(response.access_token.length > 0, 'Access token is empty');
+  
+  console.log(`Verified OAuth response has access token: ${response.access_token}`);
+});
+
+// Verify OAuth response has refresh token
+step('Verify OAuth response has refresh token', async function () {
+  const response = gauge.dataStore.scenarioStore.get('oauthResponse');
+  assert.ok(response, 'No OAuth response found');
+  assert.ok(response.refresh_token, 'OAuth response does not have refresh_token');
+  assert.ok(response.refresh_token.length > 0, 'Refresh token is empty');
+  
+  console.log(`Verified OAuth response has refresh token: ${response.refresh_token}`);
+});
+
+// Verify OAuth response does not have refresh token
+step('Verify OAuth response does not have refresh token', async function () {
+  const response = gauge.dataStore.scenarioStore.get('oauthResponse');
+  assert.ok(response, 'No OAuth response found');
+  assert.ok(!response.refresh_token, 'OAuth response should not have refresh_token');
+  
+  console.log(`Verified OAuth response does not have refresh token`);
+});
+
+// Verify OAuth response token type
+step('Verify OAuth response token type is <expectedType>', async function (expectedType) {
+  const response = gauge.dataStore.scenarioStore.get('oauthResponse');
+  assert.ok(response, 'No OAuth response found');
+  assert.strictEqual(response.token_type, expectedType, `Expected token_type to be '${expectedType}' but got '${response.token_type}'`);
+  
+  console.log(`Verified OAuth response token type: ${response.token_type}`);
+});
+
+// Verify OAuth response expires in
+step('Verify OAuth response expires in is <expectedExpiresIn>', async function (expectedExpiresIn) {
+  const response = gauge.dataStore.scenarioStore.get('oauthResponse');
+  assert.ok(response, 'No OAuth response found');
+  assert.strictEqual(response.expires_in, parseInt(expectedExpiresIn), `Expected expires_in to be ${expectedExpiresIn} but got ${response.expires_in}`);
+  
+  console.log(`Verified OAuth response expires_in: ${response.expires_in}`);
+});
+
+// Verify OAuth response has scope
+step('Verify OAuth response has scope', async function () {
+  const response = gauge.dataStore.scenarioStore.get('oauthResponse');
+  assert.ok(response, 'No OAuth response found');
+  assert.ok(response.scope, 'OAuth response does not have scope');
+  assert.ok(response.scope.length > 0, 'Scope is empty');
+  
+  console.log(`Verified OAuth response has scope: ${response.scope}`);
+});
+
+// Verify OAuth response has scope with specific value
+step('Verify OAuth response has scope <expectedScope>', async function (expectedScope) {
+  const response = gauge.dataStore.scenarioStore.get('oauthResponse');
+  assert.ok(response, 'No OAuth response found');
+  assert.strictEqual(response.scope, expectedScope, `Expected scope to be '${expectedScope}' but got '${response.scope}'`);
+  
+  console.log(`Verified OAuth response scope: ${response.scope}`);
+});
+
+// Verify OAuth error response error
+step('Verify OAuth error response error is <expectedError>', async function (expectedError) {
+  const response = gauge.dataStore.scenarioStore.get('oauthResponse');
+  assert.ok(response, 'No OAuth response found');
+  assert.ok(response.error, 'OAuth response does not have error field');
+  assert.strictEqual(response.error, expectedError, `Expected error to be '${expectedError}' but got '${response.error}'`);
+  
+  console.log(`Verified OAuth error: ${response.error}`);
+});
+
+// Verify OAuth error response has description
+step('Verify OAuth error response has description', async function () {
+  const response = gauge.dataStore.scenarioStore.get('oauthResponse');
+  assert.ok(response, 'No OAuth response found');
+  assert.ok(response.error_description, 'OAuth response does not have error_description');
+  assert.ok(response.error_description.length > 0, 'Error description is empty');
+  
+  console.log(`Verified OAuth error description: ${response.error_description}`);
+});
+
+// Verify OAuth error response description contains text
+step('Verify OAuth error response description contains <expectedText>', async function (expectedText) {
+  const response = gauge.dataStore.scenarioStore.get('oauthResponse');
+  assert.ok(response, 'No OAuth response found');
+  assert.ok(response.error_description, 'OAuth response does not have error_description');
+  assert.ok(
+    response.error_description.includes(expectedText),
+    `Expected error_description to contain '${expectedText}' but got '${response.error_description}'`
+  );
+  
+  console.log(`Verified OAuth error description contains: ${expectedText}`);
+});
+
+// Verify access token starts with prefix
+step('Verify access token starts with <expectedPrefix>', async function (expectedPrefix) {
+  const response = gauge.dataStore.scenarioStore.get('oauthResponse');
+  assert.ok(response, 'No OAuth response found');
+  assert.ok(response.access_token, 'OAuth response does not have access_token');
+  assert.ok(
+    response.access_token.startsWith(expectedPrefix),
+    `Expected access_token to start with '${expectedPrefix}' but got '${response.access_token}'`
+  );
+  
+  console.log(`Verified access token starts with: ${expectedPrefix}`);
+});
+
+// Verify refresh token starts with prefix
+step('Verify refresh token starts with <expectedPrefix>', async function (expectedPrefix) {
+  const response = gauge.dataStore.scenarioStore.get('oauthResponse');
+  assert.ok(response, 'No OAuth response found');
+  assert.ok(response.refresh_token, 'OAuth response does not have refresh_token');
+  assert.ok(
+    response.refresh_token.startsWith(expectedPrefix),
+    `Expected refresh_token to start with '${expectedPrefix}' but got '${response.refresh_token}'`
+  );
+  
+  console.log(`Verified refresh token starts with: ${expectedPrefix}`);
+});
