@@ -240,28 +240,29 @@ async fn check_auth(request: Request<axum::body::Body>, next: Next) -> Response 
     }
 
     // Validate OAuth token expiry if Authorization header is present
-    if let Some(auth_value) = auth_header
-        && let Ok(auth_str) = auth_value.to_str()
-    {
-        // Extract token from "Bearer <token>" format
-        if let Some(token) = auth_str
-            .strip_prefix("Bearer ")
-            .or_else(|| auth_str.strip_prefix("bearer "))
-        {
-            // Validate token expiry
-            if let Err(err_msg) = oauth_service::validate_token(token) {
-                let error = ErrorResponse {
-                    error: ErrorDetail {
-                        code: 401,
-                        message: format!("Invalid Credentials: {}", err_msg),
-                        errors: vec![ErrorItem {
-                            domain: "global".to_string(),
-                            reason: "authError".to_string(),
-                            message: err_msg,
-                        }],
-                    },
-                };
-                return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
+    #[allow(clippy::collapsible_if)]
+    if let Some(auth_value) = auth_header {
+        if let Ok(auth_str) = auth_value.to_str() {
+            // Extract token from "Bearer <token>" format
+            if let Some(token) = auth_str
+                .strip_prefix("Bearer ")
+                .or_else(|| auth_str.strip_prefix("bearer "))
+            {
+                // Validate token expiry
+                if let Err(err_msg) = oauth_service::validate_token(token) {
+                    let error = ErrorResponse {
+                        error: ErrorDetail {
+                            code: 401,
+                            message: format!("Invalid Credentials: {}", err_msg),
+                            errors: vec![ErrorItem {
+                                domain: "global".to_string(),
+                                reason: "authError".to_string(),
+                                message: err_msg,
+                            }],
+                        },
+                    };
+                    return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
+                }
             }
         }
     }

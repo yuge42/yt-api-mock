@@ -63,20 +63,21 @@ impl V3DataLiveChatMessageService for LiveChatService {
             }
 
             // Validate OAuth token expiry if authorization metadata is present
-            if let Some(auth_value) = auth_metadata
-                && let Ok(auth_str) = auth_value.to_str()
-            {
-                // Extract token from "Bearer <token>" format
-                if let Some(token) = auth_str
-                    .strip_prefix("Bearer ")
-                    .or_else(|| auth_str.strip_prefix("bearer "))
-                {
-                    // Validate token expiry
-                    if let Err(err_msg) = oauth_service::validate_token(token) {
-                        return Err(Status::unauthenticated(format!(
-                            "Invalid credentials: {}",
-                            err_msg
-                        )));
+            #[allow(clippy::collapsible_if)]
+            if let Some(auth_value) = auth_metadata {
+                if let Ok(auth_str) = auth_value.to_str() {
+                    // Extract token from "Bearer <token>" format
+                    if let Some(token) = auth_str
+                        .strip_prefix("Bearer ")
+                        .or_else(|| auth_str.strip_prefix("bearer "))
+                    {
+                        // Validate token expiry
+                        if let Err(err_msg) = oauth_service::validate_token(token) {
+                            return Err(Status::unauthenticated(format!(
+                                "Invalid credentials: {}",
+                                err_msg
+                            )));
+                        }
                     }
                 }
             }
