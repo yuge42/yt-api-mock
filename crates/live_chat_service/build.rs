@@ -4,10 +4,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let proto_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../proto");
     let root = proto_path.canonicalize().map_err(|e| {
         format!(
-            "Failed to find proto directory at {:?}. \
+            "Failed to find proto directory at {proto_path:?}. \
              Make sure to initialize git submodules with: \
-             git submodule update --init --recursive\nError: {}",
-            proto_path, e
+             git submodule update --init --recursive\nError: {e}",
         )
     })?;
     let proto_file = root.join("stream_list.proto");
