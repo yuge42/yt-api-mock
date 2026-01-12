@@ -1,5 +1,8 @@
 use axum::{Json, Router, extract::Form, http::StatusCode, response::IntoResponse, routing::post};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 /// Request body for token generation
 /// Supports both authorization_code and refresh_token grant types
@@ -73,6 +76,46 @@ pub struct ErrorResponse {
     pub error_description: Option<String>,
 }
 
+/// Token metadata for tracking expiry
+#[derive(Debug, Clone)]
+struct TokenMetadata {
+    /// When the token was issued
+    issued_at: DateTime<Utc>,
+    /// Expiry duration in seconds (can be negative for expired tokens)
+    expires_in: i64,
+}
+
+impl TokenMetadata {
+    /// Check if the token is expired
+    fn is_expired(&self) -> bool {
+        let now = Utc::now();
+        let expiry_time = self.issued_at + chrono::Duration::seconds(self.expires_in);
+        now >= expiry_time
+    }
+}
+
+// Global token store for tracking token expiry
+lazy_static::lazy_static! {
+    static ref TOKEN_STORE: Arc<RwLock<HashMap<String, TokenMetadata>>> =
+        Arc::new(RwLock::new(HashMap::new()));
+}
+
+/// Validate if an access token is expired
+pub fn validate_token(token: &str) -> Result<(), String> {
+    let store = TOKEN_STORE.read().unwrap();
+
+    if let Some(metadata) = store.get(token) {
+        if metadata.is_expired() {
+            return Err("Token has expired".to_string());
+        }
+        Ok(())
+    } else {
+        // If token not found, it might be from before tracking was implemented
+        // or it's an invalid token. For mock purposes, we'll allow it.
+        Ok(())
+    }
+}
+
 /// Handler for token generation and refresh
 async fn token_handler(Form(request): Form<TokenRequest>) -> impl IntoResponse {
     match request.grant_type.as_str() {
@@ -112,6 +155,16 @@ async fn handle_authorization_code(request: TokenRequest) -> impl IntoResponse {
     // Use custom expiry if provided, otherwise default to 3600 seconds (1 hour)
     let expires_in = request.expires_in.unwrap_or(3600);
 
+    // Store token metadata for expiry validation
+    let metadata = TokenMetadata {
+        issued_at: Utc::now(),
+        expires_in,
+    };
+    {
+        let mut store = TOKEN_STORE.write().unwrap();
+        store.insert(access_token.clone(), metadata);
+    }
+
     // Use custom scope if provided in request, then check environment variable, then use default
     let scope = request
         .scope
@@ -149,6 +202,16 @@ async fn handle_refresh_token(request: TokenRequest) -> impl IntoResponse {
 
     // Use custom expiry if provided, otherwise default to 3600 seconds (1 hour)
     let expires_in = request.expires_in.unwrap_or(3600);
+
+    // Store token metadata for expiry validation
+    let metadata = TokenMetadata {
+        issued_at: Utc::now(),
+        expires_in,
+    };
+    {
+        let mut store = TOKEN_STORE.write().unwrap();
+        store.insert(access_token.clone(), metadata);
+    }
 
     // Use custom scope if provided in request, then check environment variable, then use default
     let scope = request

@@ -220,10 +220,10 @@ async fn check_auth(request: Request<axum::body::Body>, next: Next) -> Response 
     let query = uri.query().unwrap_or("");
     let has_key_param = query.split('&').any(|param| param.starts_with("key="));
 
-    // Check for Authorization header
-    let has_auth_header = request.headers().get(header::AUTHORIZATION).is_some();
+    // Check for Authorization header and validate token expiry
+    let auth_header = request.headers().get(header::AUTHORIZATION);
+    let has_auth_header = auth_header.is_some();
 
-    // If neither key parameter nor Authorization header is present, return 401
     if !has_key_param && !has_auth_header {
         let error = ErrorResponse {
             error: ErrorDetail {
@@ -237,6 +237,33 @@ async fn check_auth(request: Request<axum::body::Body>, next: Next) -> Response 
             },
         };
         return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
+    }
+
+    // Validate OAuth token expiry if Authorization header is present
+    if let Some(auth_value) = auth_header
+        && let Ok(auth_str) = auth_value.to_str()
+    {
+        // Extract token from "Bearer <token>" format
+        if let Some(token) = auth_str
+            .strip_prefix("Bearer ")
+            .or_else(|| auth_str.strip_prefix("bearer "))
+        {
+            // Validate token expiry
+            if let Err(err_msg) = oauth_service::validate_token(token) {
+                let error = ErrorResponse {
+                    error: ErrorDetail {
+                        code: 401,
+                        message: format!("Invalid Credentials: {}", err_msg),
+                        errors: vec![ErrorItem {
+                            domain: "global".to_string(),
+                            reason: "authError".to_string(),
+                            message: err_msg,
+                        }],
+                    },
+                };
+                return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
+            }
+        }
     }
 
     next.run(request).await
