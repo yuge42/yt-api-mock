@@ -1372,7 +1372,7 @@ step('Verify all messages have non-empty author display names', async function (
 
 // Generate OAuth token with authorization code
 step('Generate OAuth token with authorization code <authCode>', async function (authCode) {
-  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
   const url = new URL('/oauth2/token', restServerAddress);
   
   const params = new URLSearchParams();
@@ -1399,7 +1399,7 @@ step('Generate OAuth token with authorization code <authCode>', async function (
 
 // Generate OAuth token with authorization code and custom expiry
 step('Generate OAuth token with authorization code <authCode> and expires in <expiresIn>', async function (authCode, expiresIn) {
-  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
   const url = new URL('/oauth2/token', restServerAddress);
   
   const params = new URLSearchParams();
@@ -1425,7 +1425,7 @@ step('Generate OAuth token with authorization code <authCode> and expires in <ex
 
 // Generate OAuth token with authorization code and custom scope
 step('Generate OAuth token with authorization code <authCode> and scope <scope>', async function (authCode, scope) {
-  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
   const url = new URL('/oauth2/token', restServerAddress);
   
   const params = new URLSearchParams();
@@ -1451,7 +1451,7 @@ step('Generate OAuth token with authorization code <authCode> and scope <scope>'
 
 // Generate OAuth token with grant type (for error testing)
 step('Generate OAuth token with grant type <grantType>', async function (grantType) {
-  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
   const url = new URL('/oauth2/token', restServerAddress);
   
   const params = new URLSearchParams();
@@ -1475,7 +1475,7 @@ step('Generate OAuth token with grant type <grantType>', async function (grantTy
 
 // Generate OAuth token with grant type and no code (for error testing)
 step('Generate OAuth token with grant type <grantType> and no code', async function (grantType) {
-  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
   const url = new URL('/oauth2/token', restServerAddress);
   
   const params = new URLSearchParams();
@@ -1499,7 +1499,7 @@ step('Generate OAuth token with grant type <grantType> and no code', async funct
 
 // Generate OAuth token with grant type and no refresh token (for error testing)
 step('Generate OAuth token with grant type <grantType> and no refresh token', async function (grantType) {
-  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
   const url = new URL('/oauth2/token', restServerAddress);
   
   const params = new URLSearchParams();
@@ -1536,7 +1536,7 @@ step('Refresh OAuth token using stored refresh token', async function () {
   const refreshToken = gauge.dataStore.scenarioStore.get('storedRefreshToken');
   assert.ok(refreshToken, 'No stored refresh token found');
   
-  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
   const url = new URL('/oauth2/token', restServerAddress);
   
   const params = new URLSearchParams();
@@ -1707,7 +1707,7 @@ step('Store access token from OAuth response', async function () {
 
 // Request video via REST with stored token
 step('Request video via REST with stored token and id <videoId> and parts <parts>', async function (videoId, parts) {
-  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
   const accessToken = gauge.dataStore.scenarioStore.get('storedAccessToken');
   assert.ok(accessToken, 'No stored access token found');
   
@@ -1742,7 +1742,7 @@ step('Request video via REST with stored token and id <videoId> and parts <parts
 
 // Use untracked token to request video
 step('Use untracked token <token> to request video with id <videoId> and parts <parts>', async function (token, videoId, parts) {
-  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
   
   const url = new URL('/youtube/v3/videos', restServerAddress);
   url.searchParams.append('id', videoId);

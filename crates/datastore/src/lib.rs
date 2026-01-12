@@ -71,9 +71,9 @@ impl InMemoryRepository {
         // Add dummy chat messages for live-chat-id-1 using fake library
         for i in 0..5 {
             let message = LiveChatMessage {
-                id: format!("msg-id-{}", i),
+                id: format!("msg-id-{i}"),
                 live_chat_id: "live-chat-id-1".to_string(),
-                author_channel_id: format!("channel-id-{}", i),
+                author_channel_id: format!("channel-id-{i}"),
                 author_display_name: Username().fake(),
                 message_text: Sentence(3..8).fake(),
                 published_at: fixed_time,
@@ -85,11 +85,11 @@ impl InMemoryRepository {
         // Add dummy chat messages for test-chat-id (used in tests)
         for i in 0..5 {
             let message = LiveChatMessage {
-                id: format!("test-msg-id-{}", i),
+                id: format!("test-msg-id-{i}"),
                 live_chat_id: "test-chat-id".to_string(),
-                author_channel_id: format!("test-channel-id-{}", i),
-                author_display_name: format!("Test User {}", i),
-                message_text: format!("Test message {}", i),
+                author_channel_id: format!("test-channel-id-{i}"),
+                author_display_name: format!("Test User {i}"),
+                message_text: format!("Test message {i}"),
                 published_at: fixed_time,
                 is_verified: true,
             };
