@@ -1683,3 +1683,127 @@ step('Verify refresh token starts with <expectedPrefix>', async function (expect
   
   console.log(`Verified refresh token starts with: ${expectedPrefix}`);
 });
+
+// ============================================================================
+// OAuth Token Expiry Validation Steps
+// ============================================================================
+
+// Start authenticated session
+step('Start authenticated session', async function () {
+  // This is a marker step to indicate the test requires REQUIRE_AUTH=true
+  // The actual environment variable should be set when running the test
+  console.log('Starting authenticated session (REQUIRE_AUTH should be set to true)');
+});
+
+// Store access token from OAuth response
+step('Store access token from OAuth response', async function () {
+  const response = gauge.dataStore.scenarioStore.get('oauthResponse');
+  assert.ok(response, 'No OAuth response found');
+  assert.ok(response.access_token, 'OAuth response does not have access_token');
+  
+  gauge.dataStore.scenarioStore.put('storedAccessToken', response.access_token);
+  console.log(`Stored access token: ${response.access_token}`);
+});
+
+// Request video via REST with stored token
+step('Request video via REST with stored token and id <videoId> and parts <parts>', async function (videoId, parts) {
+  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const accessToken = gauge.dataStore.scenarioStore.get('storedAccessToken');
+  assert.ok(accessToken, 'No stored access token found');
+  
+  const url = new URL('/youtube/v3/videos', restServerAddress);
+  url.searchParams.append('id', videoId);
+  url.searchParams.append('part', parts);
+  
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`
+    }
+  });
+  
+  const statusCode = response.status;
+  gauge.dataStore.scenarioStore.put('restResponseStatus', statusCode);
+  
+  let data;
+  try {
+    data = await response.json();
+    gauge.dataStore.scenarioStore.put('restResponseData', data);
+  } catch (e) {
+    // Response might not be JSON
+    gauge.dataStore.scenarioStore.put('restResponseData', null);
+  }
+  
+  console.log(`Requested video ${videoId} with token, status: ${statusCode}`);
+  if (data) {
+    console.log(`Response: ${JSON.stringify(data, null, 2)}`);
+  }
+});
+
+// Use untracked token to request video
+step('Use untracked token <token> to request video with id <videoId> and parts <parts>', async function (token, videoId, parts) {
+  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  
+  const url = new URL('/youtube/v3/videos', restServerAddress);
+  url.searchParams.append('id', videoId);
+  url.searchParams.append('part', parts);
+  
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  
+  const statusCode = response.status;
+  gauge.dataStore.scenarioStore.put('restResponseStatus', statusCode);
+  
+  let data;
+  try {
+    data = await response.json();
+    gauge.dataStore.scenarioStore.put('restResponseData', data);
+  } catch (e) {
+    gauge.dataStore.scenarioStore.put('restResponseData', null);
+  }
+  
+  console.log(`Requested video ${videoId} with untracked token, status: ${statusCode}`);
+  if (data) {
+    console.log(`Response: ${JSON.stringify(data, null, 2)}`);
+  }
+});
+
+// Verify REST response status
+step('Verify REST response status is <expectedStatus>', async function (expectedStatus) {
+  const statusCode = gauge.dataStore.scenarioStore.get('restResponseStatus');
+  assert.ok(statusCode !== undefined, 'No REST response status found');
+  assert.strictEqual(
+    statusCode,
+    parseInt(expectedStatus),
+    `Expected status ${expectedStatus} but got ${statusCode}`
+  );
+  
+  console.log(`Verified REST response status: ${statusCode}`);
+});
+
+// Verify REST error message contains text
+step('Verify REST error message contains <expectedText>', async function (expectedText) {
+  const data = gauge.dataStore.scenarioStore.get('restResponseData');
+  assert.ok(data, 'No REST response data found');
+  assert.ok(data.error, 'Response does not have error field');
+  
+  const errorMessage = data.error.message || JSON.stringify(data.error);
+  assert.ok(
+    errorMessage.toLowerCase().includes(expectedText.toLowerCase()),
+    `Expected error message to contain '${expectedText}' but got '${errorMessage}'`
+  );
+  
+  console.log(`Verified error message contains: ${expectedText}`);
+});
+
+// Wait for specified seconds
+step('Wait for <seconds> seconds', async function (seconds) {
+  const waitTime = parseInt(seconds) * 1000;
+  console.log(`Waiting for ${seconds} seconds...`);
+  await new Promise(resolve => setTimeout(resolve, waitTime));
+  console.log(`Finished waiting`);
+});
