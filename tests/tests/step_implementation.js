@@ -1423,6 +1423,32 @@ step('Generate OAuth token with authorization code <authCode> and expires in <ex
   console.log(`Response: ${JSON.stringify(data, null, 2)}`);
 });
 
+// Generate OAuth token with authorization code and custom scope
+step('Generate OAuth token with authorization code <authCode> and scope <scope>', async function (authCode, scope) {
+  const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');
+  const url = new URL('/oauth2/token', restServerAddress);
+  
+  const params = new URLSearchParams();
+  params.append('grant_type', 'authorization_code');
+  params.append('code', authCode);
+  params.append('scope', scope);
+  
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params.toString()
+  });
+  
+  const data = await response.json();
+  gauge.dataStore.scenarioStore.put('oauthResponse', data);
+  gauge.dataStore.scenarioStore.put('oauthStatusCode', response.status);
+  
+  console.log(`Generated OAuth token with authorization code: ${authCode} and scope: ${scope}`);
+  console.log(`Response: ${JSON.stringify(data, null, 2)}`);
+});
+
 // Generate OAuth token with grant type (for error testing)
 step('Generate OAuth token with grant type <grantType>', async function (grantType) {
   const restServerAddress = gauge.dataStore.scenarioStore.get('restServerAddress');

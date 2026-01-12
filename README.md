@@ -240,7 +240,8 @@ The server provides a mock OAuth2 token generation and refresh service for testi
 - Generate dummy access tokens and refresh tokens
 - Support for both `authorization_code` and `refresh_token` grant types
 - Custom token expiry times (including negative values for testing expired tokens)
-- Compatible with Google OAuth2 token endpoint format
+- Configurable scope via request parameter or environment variable
+- Compatible with OAuth2 token endpoint format
 - Access via HTTP POST at `/oauth2/token`
 
 **Generate an access token with authorization code:**
@@ -257,7 +258,7 @@ Response:
   "refresh_token": "1//mock_074bb430-d5c3-40c6-8fe5-98e0f880740d",
   "token_type": "Bearer",
   "expires_in": 3600,
-  "scope": "https://www.googleapis.com/auth/youtube.readonly"
+  "scope": "mock.scope.read mock.scope.write"
 }
 ```
 
@@ -274,7 +275,7 @@ Response:
   "access_token": "ya29.mock_6e945888-f9aa-4ae6-8f89-22498a6be7cb",
   "token_type": "Bearer",
   "expires_in": 3600,
-  "scope": "https://www.googleapis.com/auth/youtube.readonly"
+  "scope": "mock.scope.read mock.scope.write"
 }
 ```
 
@@ -290,6 +291,24 @@ curl -X POST http://localhost:8080/oauth2/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=authorization_code&code=test&expires_in=-3600"
 ```
+
+**Customize the scope:**
+
+You can customize the scope in three ways (in order of priority):
+
+1. **Via request parameter:**
+```bash
+curl -X POST http://localhost:8080/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code&code=test&scope=custom.scope.read"
+```
+
+2. **Via environment variable:**
+```bash
+OAUTH_MOCK_SCOPE="custom.scope.all" cargo run -p server
+```
+
+3. **Default:** If neither is provided, the default is `mock.scope.read mock.scope.write`
 
 **Note:** The mock OAuth service does not validate credentials. It only checks for the presence of required parameters and returns dummy tokens suitable for testing.
 

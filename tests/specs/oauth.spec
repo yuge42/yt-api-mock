@@ -63,10 +63,17 @@ This specification tests the OAuth token generation and refresh endpoints.
 * Verify OAuth error response description contains "refresh_token"
 * Close the connection
 
-## Test token format matches Google OAuth format
+## Test token format and default scope
 
 * Generate OAuth token with authorization code "test_format"
 * Verify access token starts with "ya29.mock_"
 * Verify refresh token starts with "1//mock_"
-* Verify OAuth response has scope "https://www.googleapis.com/auth/youtube.readonly"
+* Verify OAuth response has scope "mock.scope.read mock.scope.write"
+* Close the connection
+
+## Test custom scope via request parameter
+
+* Generate OAuth token with authorization code "test_custom_scope" and scope "custom.test.scope"
+* Verify OAuth response has access token
+* Verify OAuth response has scope "custom.test.scope"
 * Close the connection

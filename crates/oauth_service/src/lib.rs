@@ -32,6 +32,11 @@ pub struct TokenRequest {
     /// Can be negative to create expired tokens
     #[serde(default)]
     pub expires_in: Option<i64>,
+
+    /// Custom scope (optional, for testing)
+    /// If not provided, uses default mock scope or environment variable
+    #[serde(default)]
+    pub scope: Option<String>,
 }
 
 /// Response for successful token generation
@@ -107,12 +112,18 @@ async fn handle_authorization_code(request: TokenRequest) -> impl IntoResponse {
     // Use custom expiry if provided, otherwise default to 3600 seconds (1 hour)
     let expires_in = request.expires_in.unwrap_or(3600);
 
+    // Use custom scope if provided in request, then check environment variable, then use default
+    let scope = request
+        .scope
+        .or_else(|| std::env::var("OAUTH_MOCK_SCOPE").ok())
+        .or_else(|| Some("mock.scope.read mock.scope.write".to_string()));
+
     let response = TokenResponse {
         access_token,
         refresh_token: Some(refresh_token),
         token_type: "Bearer".to_string(),
         expires_in,
-        scope: Some("https://www.googleapis.com/auth/youtube.readonly".to_string()),
+        scope,
     };
 
     (StatusCode::OK, Json(response)).into_response()
@@ -139,12 +150,18 @@ async fn handle_refresh_token(request: TokenRequest) -> impl IntoResponse {
     // Use custom expiry if provided, otherwise default to 3600 seconds (1 hour)
     let expires_in = request.expires_in.unwrap_or(3600);
 
+    // Use custom scope if provided in request, then check environment variable, then use default
+    let scope = request
+        .scope
+        .or_else(|| std::env::var("OAUTH_MOCK_SCOPE").ok())
+        .or_else(|| Some("mock.scope.read mock.scope.write".to_string()));
+
     let response = TokenResponse {
         access_token,
         refresh_token: None, // Refresh tokens are not returned when refreshing
         token_type: "Bearer".to_string(),
         expires_in,
-        scope: Some("https://www.googleapis.com/auth/youtube.readonly".to_string()),
+        scope,
     };
 
     (StatusCode::OK, Json(response)).into_response()
