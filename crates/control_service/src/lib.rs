@@ -159,9 +159,7 @@ async fn generate_chat_message(
 
     let response = CreateResponse {
         success: true,
-        message: format!(
-            "Chat message '{id}' generated successfully with auto-generated fields"
-        ),
+        message: format!("Chat message '{id}' generated successfully with auto-generated fields"),
     };
 
     (StatusCode::CREATED, Json(response)).into_response()

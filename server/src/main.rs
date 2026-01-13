@@ -129,21 +129,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .filter(|&timeout| timeout > 0)
         .map(std::time::Duration::from_secs);
 
-    let grpc_addr: std::net::SocketAddr = grpc_bind_address.parse().map_err(|e| {
-        format!(
-            "Failed to parse GRPC_BIND_ADDRESS '{grpc_bind_address}': {e}"
-        )
-    })?;
-    let rest_addr: std::net::SocketAddr = rest_bind_address.parse().map_err(|e| {
-        format!(
-            "Failed to parse REST_BIND_ADDRESS '{rest_bind_address}': {e}"
-        )
-    })?;
-    let health_addr: std::net::SocketAddr = health_bind_address.parse().map_err(|e| {
-        format!(
-            "Failed to parse HEALTH_BIND_ADDRESS '{health_bind_address}': {e}"
-        )
-    })?;
+    let grpc_addr: std::net::SocketAddr = grpc_bind_address
+        .parse()
+        .map_err(|e| format!("Failed to parse GRPC_BIND_ADDRESS '{grpc_bind_address}': {e}"))?;
+    let rest_addr: std::net::SocketAddr = rest_bind_address
+        .parse()
+        .map_err(|e| format!("Failed to parse REST_BIND_ADDRESS '{rest_bind_address}': {e}"))?;
+    let health_addr: std::net::SocketAddr = health_bind_address
+        .parse()
+        .map_err(|e| format!("Failed to parse HEALTH_BIND_ADDRESS '{health_bind_address}': {e}"))?;
 
     // Create the centralized datastore
     let repo: Arc<dyn datastore::Repository> = Arc::new(datastore::InMemoryRepository::new());
@@ -174,15 +168,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if use_tls {
         println!("TLS enabled");
-        println!(
-            "gRPC server (live chat) listening on {grpc_addr} with TLS"
-        );
-        println!(
-            "REST server (videos API) listening on {rest_addr} with TLS"
-        );
-        println!(
-            "Health check endpoint listening on {health_addr} (no TLS)"
-        );
+        println!("gRPC server (live chat) listening on {grpc_addr} with TLS");
+        println!("REST server (videos API) listening on {rest_addr} with TLS");
+        println!("Health check endpoint listening on {health_addr} (no TLS)");
     } else {
         println!("TLS disabled");
         println!("gRPC server (live chat) listening on {grpc_addr}");
