@@ -253,7 +253,7 @@ async fn check_auth(request: Request<axum::body::Body>, next: Next) -> Response 
                     let error = ErrorResponse {
                         error: ErrorDetail {
                             code: 401,
-                            message: format!("Invalid Credentials: {}", err_msg),
+                            message: format!("Invalid Credentials: {err_msg}"),
                             errors: vec![ErrorItem {
                                 domain: "global".to_string(),
                                 reason: "authError".to_string(),

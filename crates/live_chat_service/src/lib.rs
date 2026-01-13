@@ -74,8 +74,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
                         // Validate token expiry
                         if let Err(err_msg) = oauth_service::validate_token(token) {
                             return Err(Status::unauthenticated(format!(
-                                "Invalid credentials: {}",
-                                err_msg
+                                "Invalid credentials: {err_msg}"
                             )));
                         }
                     }
@@ -157,7 +156,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
 
                     let item = proto::LiveChatMessage {
                         kind: Some("youtube#liveChatMessage".to_string()),
-                        etag: Some(format!("etag-{}", i)),
+                        etag: Some(format!("etag-{i}")),
                         id: Some(msg.id.clone()),
                         snippet: Some(snippet),
                         author_details: Some(author_details),
@@ -170,7 +169,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
 
                     let response = LiveChatMessageListResponse {
                         kind: Some("youtube#liveChatMessageListResponse".to_string()),
-                        etag: Some(format!("etag-{}", i)),
+                        etag: Some(format!("etag-{i}")),
                         items: vec![item],
                         next_page_token,
                         ..Default::default()
@@ -194,7 +193,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
 
                     let response = LiveChatMessageListResponse {
                         kind: Some("youtube#liveChatMessageListResponse".to_string()),
-                        etag: Some(format!("etag-{}", current_index)),
+                        etag: Some(format!("etag-{current_index}")),
                         items: vec![],
                         next_page_token,
                         ..Default::default()

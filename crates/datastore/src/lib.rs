@@ -331,7 +331,7 @@ mod tests {
 
         // Verify message content (uses fake data, so we check structure not exact values)
         for (i, message) in messages.iter().enumerate() {
-            assert_eq!(message.id, format!("msg-id-{}", i));
+            assert_eq!(message.id, format!("msg-id-{i}"));
             assert_eq!(message.live_chat_id, "live-chat-id-1");
             assert!(
                 !message.author_display_name.is_empty(),
@@ -358,10 +358,10 @@ mod tests {
 
         // Verify message content
         for (i, message) in messages.iter().enumerate() {
-            assert_eq!(message.id, format!("test-msg-id-{}", i));
+            assert_eq!(message.id, format!("test-msg-id-{i}"));
             assert_eq!(message.live_chat_id, "test-chat-id");
-            assert_eq!(message.author_display_name, format!("Test User {}", i));
-            assert_eq!(message.message_text, format!("Test message {}", i));
+            assert_eq!(message.author_display_name, format!("Test User {i}"));
+            assert_eq!(message.message_text, format!("Test message {i}"));
         }
     }
 
@@ -420,11 +420,11 @@ mod tests {
 
         for i in 0..10 {
             let message = LiveChatMessage {
-                id: format!("multi-msg-{}", i),
+                id: format!("multi-msg-{i}"),
                 live_chat_id: chat_id.to_string(),
-                author_channel_id: format!("author-{}", i),
-                author_display_name: format!("User {}", i),
-                message_text: format!("Message number {}", i),
+                author_channel_id: format!("author-{i}"),
+                author_display_name: format!("User {i}"),
+                message_text: format!("Message number {i}"),
                 published_at: fixed_time,
                 is_verified: i % 2 == 0,
             };
@@ -436,8 +436,8 @@ mod tests {
 
         // Verify order is preserved
         for (i, message) in messages.iter().enumerate() {
-            assert_eq!(message.id, format!("multi-msg-{}", i));
-            assert_eq!(message.message_text, format!("Message number {}", i));
+            assert_eq!(message.id, format!("multi-msg-{i}"));
+            assert_eq!(message.message_text, format!("Message number {i}"));
         }
     }
 
@@ -474,11 +474,11 @@ mod tests {
                     .expect("Valid datetime");
 
                 let video = Video {
-                    id: format!("concurrent-video-{}", i),
-                    channel_id: format!("channel-{}", i),
-                    title: format!("Concurrent Video {}", i),
+                    id: format!("concurrent-video-{i}"),
+                    channel_id: format!("channel-{i}"),
+                    title: format!("Concurrent Video {i}"),
                     description: "Test concurrent access".to_string(),
-                    channel_title: format!("Channel {}", i),
+                    channel_title: format!("Channel {i}"),
                     published_at: fixed_time,
                     live_chat_id: None,
                     actual_start_time: None,
@@ -501,8 +501,8 @@ mod tests {
         // Verify all videos were added
         let videos = repo.get_videos();
         for i in 0..10 {
-            let video = repo.get_video(&format!("concurrent-video-{}", i));
-            assert!(video.is_some(), "Video {} should exist", i);
+            let video = repo.get_video(&format!("concurrent-video-{i}"));
+            assert!(video.is_some(), "Video {i} should exist");
         }
 
         // Count concurrent videos
@@ -533,11 +533,11 @@ mod tests {
                     .expect("Valid datetime");
 
                 let message = LiveChatMessage {
-                    id: format!("concurrent-msg-{}", i),
+                    id: format!("concurrent-msg-{i}"),
                     live_chat_id: chat_id,
-                    author_channel_id: format!("author-{}", i),
-                    author_display_name: format!("User {}", i),
-                    message_text: format!("Concurrent message {}", i),
+                    author_channel_id: format!("author-{i}"),
+                    author_display_name: format!("User {i}"),
+                    message_text: format!("Concurrent message {i}"),
                     published_at: fixed_time,
                     is_verified: true,
                 };
@@ -560,8 +560,8 @@ mod tests {
         for i in 0..10 {
             let found = messages
                 .iter()
-                .any(|m| m.id == format!("concurrent-msg-{}", i));
-            assert!(found, "Message {} should exist", i);
+                .any(|m| m.id == format!("concurrent-msg-{i}"));
+            assert!(found, "Message {i} should exist");
         }
     }
 
@@ -595,11 +595,11 @@ mod tests {
 
                 for j in 0..10 {
                     let video = Video {
-                        id: format!("rw-video-{}-{}", i, j),
-                        channel_id: format!("channel-{}", i),
-                        title: format!("RW Video {} {}", i, j),
+                        id: format!("rw-video-{i}-{j}"),
+                        channel_id: format!("channel-{i}"),
+                        title: format!("RW Video {i} {j}"),
                         description: "Test read-write".to_string(),
-                        channel_title: format!("Channel {}", i),
+                        channel_title: format!("Channel {i}"),
                         published_at: fixed_time,
                         live_chat_id: None,
                         actual_start_time: None,
