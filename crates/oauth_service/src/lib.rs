@@ -90,7 +90,20 @@ impl TokenMetadata {
     fn is_expired(&self) -> bool {
         let now = Utc::now();
         let expiry_time = self.issued_at + chrono::Duration::seconds(self.expires_in);
-        now >= expiry_time
+        let is_expired = now >= expiry_time;
+        
+        // Debug logging to help diagnose test failures
+        eprintln!(
+            "[DEBUG] Token expiry check: issued_at={}, expires_in={}s, expiry_time={}, now={}, elapsed={:.2}s, is_expired={}",
+            self.issued_at,
+            self.expires_in,
+            expiry_time,
+            now,
+            (now - self.issued_at).num_milliseconds() as f64 / 1000.0,
+            is_expired
+        );
+        
+        is_expired
     }
 }
 
@@ -105,13 +118,17 @@ pub fn validate_token(token: &str) -> Result<(), String> {
     let store = TOKEN_STORE.read().unwrap();
 
     if let Some(metadata) = store.get(token) {
+        eprintln!("[DEBUG] validate_token: Token found in store, checking expiry");
         if metadata.is_expired() {
+            eprintln!("[DEBUG] validate_token: Token IS expired, returning error");
             return Err("Token has expired".to_string());
         }
+        eprintln!("[DEBUG] validate_token: Token is NOT expired, allowing");
         Ok(())
     } else {
         // If token not found, it might be from before tracking was implemented
         // or it's an invalid token. For mock purposes, we'll allow it.
+        eprintln!("[DEBUG] validate_token: Token NOT found in store (count={}), allowing", store.len());
         Ok(())
     }
 }
@@ -162,7 +179,8 @@ async fn handle_authorization_code(request: TokenRequest) -> impl IntoResponse {
     };
     {
         let mut store = TOKEN_STORE.write().unwrap();
-        store.insert(access_token.clone(), metadata);
+        store.insert(access_token.clone(), metadata.clone());
+        eprintln!("[DEBUG] authorization_code: Stored token, expires_in={}s, token_prefix={}, store_size={}", expires_in, &access_token[..20], store.len());
     }
 
     // Use custom scope if provided in request, then check environment variable, then use default
@@ -210,7 +228,8 @@ async fn handle_refresh_token(request: TokenRequest) -> impl IntoResponse {
     };
     {
         let mut store = TOKEN_STORE.write().unwrap();
-        store.insert(access_token.clone(), metadata);
+        store.insert(access_token.clone(), metadata.clone());
+        eprintln!("[DEBUG] refresh_token: Stored token, expires_in={}s, token_prefix={}, store_size={}", expires_in, &access_token[..20], store.len());
     }
 
     // Use custom scope if provided in request, then check environment variable, then use default
