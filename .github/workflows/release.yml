@@ -82,37 +82,69 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           TAG="${{ steps.version.outputs.tag }}"
-
+          
+          # Find the previous release tag
+          PREV_TAG=$(git tag --list --sort=-version:refname 'v*.*.*' | grep -vF "${TAG}" | head -n1)
+          
+          # Start building the release notes
           cat > release_notes.md << 'EOFNOTES'
           ## YouTube API Mock $TAG
 
+          EOFNOTES
+          
+          # Add comparison link if previous tag exists
+          if [ -n "$PREV_TAG" ]; then
+            cat >> release_notes.md << 'EOFNOTES'
+          ### Changes
+          
+          See the full diff: [$PREV_TAG...$TAG](https://github.com/$REPO/compare/$PREV_TAG...$TAG)
+          
+          EOFNOTES
+          fi
+          
+          # Add Docker installation and usage instructions
+          cat >> release_notes.md << 'EOFNOTES'
+          ### Docker Image
+
           Docker image available at:
 
+          ```bash
           docker pull $REGISTRY/$IMAGE_NAME:$VERSION
+          ```
 
           ### Available tags:
-          - $VERSION
-          - latest
+          - `$VERSION`
+          - `latest`
 
           ### Running the server:
 
+          ```bash
           docker run -p 50051:50051 -p 8080:8080 -p 8081:8081 \
             -e GRPC_BIND_ADDRESS="[::]:50051" \
             -e REST_BIND_ADDRESS="[::]:8080" \
             -e HEALTH_BIND_ADDRESS="[::]:8081" \
             $REGISTRY/$IMAGE_NAME:$VERSION
+          ```
 
-          See the README for more details on configuration and usage:
-          https://github.com/$REPO/blob/$TAG/README.md
+          See the [README](https://github.com/$REPO/blob/$TAG/README.md) for more details on configuration and usage.
           EOFNOTES
 
+          # Replace placeholders
+          # Note: PREV_TAG replacement is safe even when empty, as $PREV_TAG only appears
+          # in the Changes section which is conditionally added above
           sed -i "s|\$VERSION|$VERSION|g" release_notes.md
           sed -i "s|\$TAG|$TAG|g" release_notes.md
+          sed -i "s|\$PREV_TAG|$PREV_TAG|g" release_notes.md
           sed -i "s|\$REGISTRY|${{ env.REGISTRY }}|g" release_notes.md
           sed -i "s|\$IMAGE_NAME|${{ env.IMAGE_NAME }}|g" release_notes.md
           sed -i "s|\$REPO|${{ github.repository }}|g" release_notes.md
 
           echo "Release notes generated"
+          if [ -n "$PREV_TAG" ]; then
+            echo "Previous release: $PREV_TAG"
+          else
+            echo "No previous release found (this is the first release)"
+          fi
 
       - name: Create GitHub Release
         env:
