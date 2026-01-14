@@ -52,9 +52,9 @@ where
             .as_secs();
 
         if let Some(addr) = remote_addr {
-            println!("[{}] {} {} from {}", timestamp, method, uri, addr);
+            println!("[{timestamp}] {method} {uri} from {addr}");
         } else {
-            println!("[{}] {} {} from <unknown>", timestamp, method, uri);
+            println!("[{timestamp}] {method} {uri} from <unknown>");
         }
 
         Box::pin(self.inner.call(req))
@@ -67,9 +67,9 @@ fn load_tls_config(
     key_path: PathBuf,
 ) -> Result<tonic::transport::ServerTlsConfig, Box<dyn std::error::Error>> {
     let cert = std::fs::read_to_string(&cert_path)
-        .map_err(|e| format!("Failed to read certificate file {:?}: {}", cert_path, e))?;
+        .map_err(|e| format!("Failed to read certificate file {cert_path:?}: {e}"))?;
     let key = std::fs::read_to_string(&key_path)
-        .map_err(|e| format!("Failed to read key file {:?}: {}", key_path, e))?;
+        .map_err(|e| format!("Failed to read key file {key_path:?}: {e}"))?;
 
     let identity = tonic::transport::Identity::from_pem(cert, key);
     Ok(tonic::transport::ServerTlsConfig::new().identity(identity))
@@ -129,24 +129,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .filter(|&timeout| timeout > 0)
         .map(std::time::Duration::from_secs);
 
-    let grpc_addr: std::net::SocketAddr = grpc_bind_address.parse().map_err(|e| {
-        format!(
-            "Failed to parse GRPC_BIND_ADDRESS '{}': {}",
-            grpc_bind_address, e
-        )
-    })?;
-    let rest_addr: std::net::SocketAddr = rest_bind_address.parse().map_err(|e| {
-        format!(
-            "Failed to parse REST_BIND_ADDRESS '{}': {}",
-            rest_bind_address, e
-        )
-    })?;
-    let health_addr: std::net::SocketAddr = health_bind_address.parse().map_err(|e| {
-        format!(
-            "Failed to parse HEALTH_BIND_ADDRESS '{}': {}",
-            health_bind_address, e
-        )
-    })?;
+    let grpc_addr: std::net::SocketAddr = grpc_bind_address
+        .parse()
+        .map_err(|e| format!("Failed to parse GRPC_BIND_ADDRESS '{grpc_bind_address}': {e}"))?;
+    let rest_addr: std::net::SocketAddr = rest_bind_address
+        .parse()
+        .map_err(|e| format!("Failed to parse REST_BIND_ADDRESS '{rest_bind_address}': {e}"))?;
+    let health_addr: std::net::SocketAddr = health_bind_address
+        .parse()
+        .map_err(|e| format!("Failed to parse HEALTH_BIND_ADDRESS '{health_bind_address}': {e}"))?;
 
     // Create the centralized datastore
     let repo: Arc<dyn datastore::Repository> = Arc::new(datastore::InMemoryRepository::new());
@@ -163,33 +154,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create control service for managing videos and chat messages
     let control_router = control_service::create_router(Arc::clone(&repo));
 
+    // Create OAuth service for token generation and refresh
+    let oauth_router = oauth_service::create_router();
+
     // Nest routers under their respective paths to avoid conflicts
     let rest_app = Router::new()
         .nest("/youtube/v3", video_router)
-        .nest("/control", control_router);
+        .nest("/control", control_router)
+        .nest("/oauth2", oauth_router);
 
     // Create a simple health check endpoint (always runs without TLS)
     let health_app = Router::new().route("/healthz", axum::routing::get(|| async { "OK" }));
 
     if use_tls {
         println!("TLS enabled");
-        println!(
-            "gRPC server (live chat) listening on {} with TLS",
-            grpc_addr
-        );
-        println!(
-            "REST server (videos API) listening on {} with TLS",
-            rest_addr
-        );
-        println!(
-            "Health check endpoint listening on {} (no TLS)",
-            health_addr
-        );
+        println!("gRPC server (live chat) listening on {grpc_addr} with TLS");
+        println!("REST server (videos API) listening on {rest_addr} with TLS");
+        println!("Health check endpoint listening on {health_addr} (no TLS)");
     } else {
         println!("TLS disabled");
-        println!("gRPC server (live chat) listening on {}", grpc_addr);
-        println!("REST server (videos API) listening on {}", rest_addr);
-        println!("Health check endpoint listening on {}", health_addr);
+        println!("gRPC server (live chat) listening on {grpc_addr}");
+        println!("REST server (videos API) listening on {rest_addr}");
+        println!("Health check endpoint listening on {health_addr}");
     }
 
     // Run all servers concurrently with graceful shutdown

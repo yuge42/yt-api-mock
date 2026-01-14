@@ -1,7 +1,7 @@
 # Multi-stage build for minimal server image size
 
 # Stage 1: Builder
-FROM rust:1.85-slim AS builder
+FROM rust:1.88-slim AS builder
 
 # Install essential build tools and protoc
 RUN apt-get update && \

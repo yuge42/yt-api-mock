@@ -53,12 +53,32 @@ impl V3DataLiveChatMessageService for LiveChatService {
             // 2. 'authorization' metadata (OAuth 2.0)
             let metadata = request.metadata();
             let has_api_key = metadata.get("x-goog-api-key").is_some();
-            let has_auth = metadata.get("authorization").is_some();
+            let auth_metadata = metadata.get("authorization");
+            let has_auth = auth_metadata.is_some();
 
             if !has_api_key && !has_auth {
                 return Err(Status::unauthenticated(
                     "Request is missing required authentication credential. Expected OAuth 2 access token or API key.",
                 ));
+            }
+
+            // Validate OAuth token expiry if authorization metadata is present
+            #[allow(clippy::collapsible_if)]
+            if let Some(auth_value) = auth_metadata {
+                if let Ok(auth_str) = auth_value.to_str() {
+                    // Extract token from "Bearer <token>" format
+                    if let Some(token) = auth_str
+                        .strip_prefix("Bearer ")
+                        .or_else(|| auth_str.strip_prefix("bearer "))
+                    {
+                        // Validate token expiry
+                        if let Err(err_msg) = oauth_service::validate_token(token) {
+                            return Err(Status::unauthenticated(format!(
+                                "Invalid credentials: {err_msg}"
+                            )));
+                        }
+                    }
+                }
             }
         }
 
@@ -136,7 +156,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
 
                     let item = proto::LiveChatMessage {
                         kind: Some("youtube#liveChatMessage".to_string()),
-                        etag: Some(format!("etag-{}", i)),
+                        etag: Some(format!("etag-{i}")),
                         id: Some(msg.id.clone()),
                         snippet: Some(snippet),
                         author_details: Some(author_details),
@@ -149,7 +169,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
 
                     let response = LiveChatMessageListResponse {
                         kind: Some("youtube#liveChatMessageListResponse".to_string()),
-                        etag: Some(format!("etag-{}", i)),
+                        etag: Some(format!("etag-{i}")),
                         items: vec![item],
                         next_page_token,
                         ..Default::default()
@@ -173,7 +193,7 @@ impl V3DataLiveChatMessageService for LiveChatService {
 
                     let response = LiveChatMessageListResponse {
                         kind: Some("youtube#liveChatMessageListResponse".to_string()),
-                        etag: Some(format!("etag-{}", current_index)),
+                        etag: Some(format!("etag-{current_index}")),
                         items: vec![],
                         next_page_token,
                         ..Default::default()

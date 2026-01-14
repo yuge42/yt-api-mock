@@ -12,6 +12,7 @@ tokio-stream = { workspace = true }
 futures = { workspace = true }
 datastore = { path = "../datastore" }
 base64 = "0.22"
+oauth_service = { path = "../oauth_service" }
 
 [build-dependencies]
 tonic-build = { workspace = true }
