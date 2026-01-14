@@ -76,13 +76,15 @@ pub struct ErrorResponse {
     pub error_description: Option<String>,
 }
 
-/// Token metadata for tracking expiry
+/// Token metadata for tracking expiry and scope
 #[derive(Debug, Clone)]
 struct TokenMetadata {
     /// When the token was issued
     issued_at: DateTime<Utc>,
     /// Expiry duration in seconds (can be negative for expired tokens)
     expires_in: i64,
+    /// The scope associated with this token
+    scope: String,
 }
 
 impl TokenMetadata {
@@ -114,6 +116,12 @@ pub fn validate_token(token: &str) -> Result<(), String> {
         // or it's an invalid token. For mock purposes, we'll allow it.
         Ok(())
     }
+}
+
+/// Retrieve the scope associated with a token
+pub fn get_token_scope(token: &str) -> Option<String> {
+    let store = TOKEN_STORE.read().unwrap();
+    store.get(token).map(|metadata| metadata.scope.clone())
 }
 
 /// Handler for token generation and refresh
@@ -155,28 +163,30 @@ async fn handle_authorization_code(request: TokenRequest) -> impl IntoResponse {
     // Use custom expiry if provided, otherwise default to 3600 seconds (1 hour)
     let expires_in = request.expires_in.unwrap_or(3600);
 
-    // Store token metadata for expiry validation
+    // Use custom scope if provided in request, then check environment variable, then use default
+    let scope = request
+        .scope
+        .or_else(|| std::env::var("OAUTH_MOCK_SCOPE").ok())
+        .or_else(|| Some("mock.scope.read mock.scope.write".to_string()))
+        .unwrap();
+
+    // Store token metadata for expiry validation and scope tracking
     let metadata = TokenMetadata {
         issued_at: Utc::now(),
         expires_in,
+        scope: scope.clone(),
     };
     {
         let mut store = TOKEN_STORE.write().unwrap();
         store.insert(access_token.clone(), metadata.clone());
     }
 
-    // Use custom scope if provided in request, then check environment variable, then use default
-    let scope = request
-        .scope
-        .or_else(|| std::env::var("OAUTH_MOCK_SCOPE").ok())
-        .or_else(|| Some("mock.scope.read mock.scope.write".to_string()));
-
     let response = TokenResponse {
         access_token,
         refresh_token: Some(refresh_token),
         token_type: "Bearer".to_string(),
         expires_in,
-        scope,
+        scope: Some(scope),
     };
 
     (StatusCode::OK, Json(response)).into_response()
@@ -203,28 +213,30 @@ async fn handle_refresh_token(request: TokenRequest) -> impl IntoResponse {
     // Use custom expiry if provided, otherwise default to 3600 seconds (1 hour)
     let expires_in = request.expires_in.unwrap_or(3600);
 
-    // Store token metadata for expiry validation
+    // Use custom scope if provided in request, then check environment variable, then use default
+    let scope = request
+        .scope
+        .or_else(|| std::env::var("OAUTH_MOCK_SCOPE").ok())
+        .or_else(|| Some("mock.scope.read mock.scope.write".to_string()))
+        .unwrap();
+
+    // Store token metadata for expiry validation and scope tracking
     let metadata = TokenMetadata {
         issued_at: Utc::now(),
         expires_in,
+        scope: scope.clone(),
     };
     {
         let mut store = TOKEN_STORE.write().unwrap();
         store.insert(access_token.clone(), metadata.clone());
     }
 
-    // Use custom scope if provided in request, then check environment variable, then use default
-    let scope = request
-        .scope
-        .or_else(|| std::env::var("OAUTH_MOCK_SCOPE").ok())
-        .or_else(|| Some("mock.scope.read mock.scope.write".to_string()));
-
     let response = TokenResponse {
         access_token,
         refresh_token: None, // Refresh tokens are not returned when refreshing
         token_type: "Bearer".to_string(),
         expires_in,
-        scope,
+        scope: Some(scope),
     };
 
     (StatusCode::OK, Json(response)).into_response()
