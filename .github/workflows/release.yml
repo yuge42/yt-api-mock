@@ -84,7 +84,7 @@ jobs:
           TAG="${{ steps.version.outputs.tag }}"
           
           # Find the previous release tag
-          PREV_TAG=$(git tag --list --sort=-version:refname 'v*.*.*' | grep -v "^${TAG}$" | head -n1)
+          PREV_TAG=$(git tag --list --sort=-version:refname 'v*.*.*' | grep -vF "${TAG}" | head -n1)
           
           # Start building the release notes
           cat > release_notes.md << 'EOFNOTES'
