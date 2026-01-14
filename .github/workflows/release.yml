@@ -130,6 +130,8 @@ jobs:
           EOFNOTES
 
           # Replace placeholders
+          # Note: PREV_TAG replacement is safe even when empty, as $PREV_TAG only appears
+          # in the Changes section which is conditionally added above
           sed -i "s|\$VERSION|$VERSION|g" release_notes.md
           sed -i "s|\$TAG|$TAG|g" release_notes.md
           sed -i "s|\$PREV_TAG|$PREV_TAG|g" release_notes.md
