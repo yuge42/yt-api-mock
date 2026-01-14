@@ -77,3 +77,13 @@ This specification tests the OAuth token generation and refresh endpoints.
 * Verify OAuth response has access token
 * Verify OAuth response has scope "custom.test.scope"
 * Close the connection
+
+## Test scope preservation during token refresh
+
+* Generate OAuth token with authorization code "test_scope_refresh" and scope "preserve.this.scope"
+* Verify OAuth response has scope "preserve.this.scope"
+* Store refresh token from OAuth response
+* Refresh OAuth token using stored refresh token
+* Verify OAuth response has access token
+* Verify OAuth response has scope "preserve.this.scope"
+* Close the connection

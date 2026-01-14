@@ -179,6 +179,8 @@ async fn handle_authorization_code(request: TokenRequest) -> impl IntoResponse {
     {
         let mut store = TOKEN_STORE.write().unwrap();
         store.insert(access_token.clone(), metadata.clone());
+        // Also store refresh token with the same scope so it can be retrieved later
+        store.insert(refresh_token.clone(), metadata.clone());
     }
 
     let response = TokenResponse {
@@ -207,15 +209,24 @@ async fn handle_refresh_token(request: TokenRequest) -> impl IntoResponse {
         return (StatusCode::BAD_REQUEST, Json(error)).into_response();
     }
 
+    let refresh_token = request.refresh_token.as_ref().unwrap();
+
+    // Try to get the original scope from the refresh token
+    // In a real implementation, refresh tokens would be tracked separately
+    // For this mock, we'll try to look it up from TOKEN_STORE
+    let original_scope = get_token_scope(refresh_token);
+
     // Generate a new access token
     let access_token = format!("ya29.mock_{}", uuid::Uuid::new_v4());
 
     // Use custom expiry if provided, otherwise default to 3600 seconds (1 hour)
     let expires_in = request.expires_in.unwrap_or(3600);
 
-    // Use custom scope if provided in request, then check environment variable, then use default
+    // Use custom scope if provided in request, then use original scope from refresh token,
+    // then check environment variable, then use default
     let scope = request
         .scope
+        .or(original_scope)
         .or_else(|| std::env::var("OAUTH_MOCK_SCOPE").ok())
         .or_else(|| Some("mock.scope.read mock.scope.write".to_string()))
         .unwrap();
