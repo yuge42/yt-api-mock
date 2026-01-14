@@ -91,7 +91,7 @@ impl TokenMetadata {
         let now = Utc::now();
         let expiry_time = self.issued_at + chrono::Duration::seconds(self.expires_in);
         let is_expired = now >= expiry_time;
-        
+
         // Debug logging to help diagnose test failures
         eprintln!(
             "[DEBUG] Token expiry check: issued_at={}, expires_in={}s, expiry_time={}, now={}, elapsed={:.2}s, is_expired={}",
@@ -102,7 +102,7 @@ impl TokenMetadata {
             (now - self.issued_at).num_milliseconds() as f64 / 1000.0,
             is_expired
         );
-        
+
         is_expired
     }
 }
@@ -116,9 +116,12 @@ lazy_static::lazy_static! {
 /// Validate if an access token is expired
 pub fn validate_token(token: &str) -> Result<(), String> {
     let store = TOKEN_STORE.read().unwrap();
+    
+    eprintln!("[DEBUG] validate_token: Checking token (len={}, prefix={}...)", token.len(), if token.len() >= 20 { &token[..20] } else { token });
+    eprintln!("[DEBUG] validate_token: Store has {} tokens", store.len());
 
     if let Some(metadata) = store.get(token) {
-        eprintln!("[DEBUG] validate_token: Token found in store, checking expiry");
+        eprintln!("[DEBUG] validate_token: Token FOUND in store, checking expiry");
         if metadata.is_expired() {
             eprintln!("[DEBUG] validate_token: Token IS expired, returning error");
             return Err("Token has expired".to_string());
@@ -128,7 +131,11 @@ pub fn validate_token(token: &str) -> Result<(), String> {
     } else {
         // If token not found, it might be from before tracking was implemented
         // or it's an invalid token. For mock purposes, we'll allow it.
-        eprintln!("[DEBUG] validate_token: Token NOT found in store (count={}), allowing", store.len());
+        eprintln!(
+            "[DEBUG] validate_token: Token NOT found in store (count={}), allowing",
+            store.len()
+        );
+        eprintln!("[DEBUG] validate_token: Store keys: {:?}", store.keys().map(|k| if k.len() >= 20 { &k[..20] } else { k }).collect::<Vec<_>>());
         Ok(())
     }
 }
@@ -180,7 +187,12 @@ async fn handle_authorization_code(request: TokenRequest) -> impl IntoResponse {
     {
         let mut store = TOKEN_STORE.write().unwrap();
         store.insert(access_token.clone(), metadata.clone());
-        eprintln!("[DEBUG] authorization_code: Stored token, expires_in={}s, token_prefix={}, store_size={}", expires_in, &access_token[..20], store.len());
+        eprintln!(
+            "[DEBUG] authorization_code: Stored token, expires_in={}s, token_prefix={}, store_size={}",
+            expires_in,
+            &access_token[..20],
+            store.len()
+        );
     }
 
     // Use custom scope if provided in request, then check environment variable, then use default
@@ -229,7 +241,12 @@ async fn handle_refresh_token(request: TokenRequest) -> impl IntoResponse {
     {
         let mut store = TOKEN_STORE.write().unwrap();
         store.insert(access_token.clone(), metadata.clone());
-        eprintln!("[DEBUG] refresh_token: Stored token, expires_in={}s, token_prefix={}, store_size={}", expires_in, &access_token[..20], store.len());
+        eprintln!(
+            "[DEBUG] refresh_token: Stored token, expires_in={}s, token_prefix={}, store_size={}",
+            expires_in,
+            &access_token[..20],
+            store.len()
+        );
     }
 
     // Use custom scope if provided in request, then check environment variable, then use default
