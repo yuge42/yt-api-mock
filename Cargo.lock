@@ -218,7 +218,7 @@ dependencies = [
 
 [[package]]
 name = "control_service"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "axum",
  "chrono",
@@ -238,7 +238,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "datastore"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "domain",
@@ -255,7 +255,7 @@ checksum = "abd57806937c9cc163efc8ea3910e00a62e2aeb0b8119f1793a978088f8f6b04"
 
 [[package]]
 name = "domain"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "serde",
@@ -755,7 +755,7 @@ dependencies = [
 
 [[package]]
 name = "oauth_service"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "axum",
  "chrono",
@@ -1147,7 +1147,7 @@ dependencies = [
 
 [[package]]
 name = "server"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "axum",
  "axum-server",
