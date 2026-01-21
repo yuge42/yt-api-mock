@@ -1821,12 +1821,10 @@ step('Request video via REST with invalid API key parameter', async function () 
 // Request video with invalid Authorization header
 step('Request video via REST with invalid authorization header', async function () {
   const restServerAddress = gauge.dataStore.specStore.get('restServerAddress');
-  const url = new URL('/youtube/v3/videos', restServerAddress);
-  url.searchParams.append('id', 'test-video-1');
-  url.searchParams.append('part', 'liveStreamingDetails');
-  
-  await makeRestRequestWithHeaders(
-    url.toString(),
+  await makeRestRequest(
+    restServerAddress,
+    '/youtube/v3/videos',
+    { id: 'test-video-1', part: 'liveStreamingDetails' },
     { 'Authorization': 'Bearer invalid-token-123' }
   );
 });
