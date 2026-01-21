@@ -220,6 +220,29 @@ async fn check_auth(request: Request<axum::body::Body>, next: Next) -> Response 
     let query = uri.query().unwrap_or("");
     let has_key_param = query.split('&').any(|param| param.starts_with("key="));
 
+    // Check if the API key starts with "invalid"
+    let invalid_api_key = query
+        .split('&')
+        .find(|param| param.starts_with("key="))
+        .and_then(|param| param.strip_prefix("key="))
+        .map(|key| key.starts_with("invalid"))
+        .unwrap_or(false);
+
+    if invalid_api_key {
+        let error = ErrorResponse {
+            error: ErrorDetail {
+                code: 401,
+                message: "Invalid API key".to_string(),
+                errors: vec![ErrorItem {
+                    domain: "global".to_string(),
+                    reason: "authError".to_string(),
+                    message: "API key not valid. Please pass a valid API key.".to_string(),
+                }],
+            },
+        };
+        return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
+    }
+
     // Check for Authorization header and validate token expiry
     let auth_header = request.headers().get(header::AUTHORIZATION);
     let has_auth_header = auth_header.is_some();
@@ -248,6 +271,22 @@ async fn check_auth(request: Request<axum::body::Body>, next: Next) -> Response 
                 .strip_prefix("Bearer ")
                 .or_else(|| auth_str.strip_prefix("bearer "))
             {
+                // Check if token starts with "invalid"
+                if token.starts_with("invalid") {
+                    let error = ErrorResponse {
+                        error: ErrorDetail {
+                            code: 401,
+                            message: "Invalid Credentials".to_string(),
+                            errors: vec![ErrorItem {
+                                domain: "global".to_string(),
+                                reason: "authError".to_string(),
+                                message: "Invalid token".to_string(),
+                            }],
+                        },
+                    };
+                    return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
+                }
+
                 // Validate token expiry
                 if let Err(err_msg) = oauth_service::validate_token(token) {
                     let error = ErrorResponse {
