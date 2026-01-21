@@ -218,29 +218,31 @@ async fn check_auth(request: Request<axum::body::Body>, next: Next) -> Response 
     // Extract query parameters to check for 'key' parameter
     let uri = request.uri();
     let query = uri.query().unwrap_or("");
-    let has_key_param = query.split('&').any(|param| param.starts_with("key="));
 
-    // Check if the API key starts with "invalid"
-    let invalid_api_key = query
+    // Extract API key if present
+    let api_key = query
         .split('&')
         .find(|param| param.starts_with("key="))
-        .and_then(|param| param.strip_prefix("key="))
-        .map(|key| key.starts_with("invalid"))
-        .unwrap_or(false);
+        .and_then(|param| param.strip_prefix("key="));
 
-    if invalid_api_key {
-        let error = ErrorResponse {
-            error: ErrorDetail {
-                code: 401,
-                message: "Invalid API key".to_string(),
-                errors: vec![ErrorItem {
-                    domain: "global".to_string(),
-                    reason: "authError".to_string(),
-                    message: "API key not valid. Please pass a valid API key.".to_string(),
-                }],
-            },
-        };
-        return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
+    let has_key_param = api_key.is_some();
+
+    // Check if the API key starts with "invalid"
+    if let Some(key) = api_key {
+        if key.starts_with("invalid") {
+            let error = ErrorResponse {
+                error: ErrorDetail {
+                    code: 401,
+                    message: "Invalid API key".to_string(),
+                    errors: vec![ErrorItem {
+                        domain: "global".to_string(),
+                        reason: "authError".to_string(),
+                        message: "API key not valid. Please pass a valid API key.".to_string(),
+                    }],
+                },
+            };
+            return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
+        }
     }
 
     // Check for Authorization header and validate token expiry
@@ -276,7 +278,7 @@ async fn check_auth(request: Request<axum::body::Body>, next: Next) -> Response 
                     let error = ErrorResponse {
                         error: ErrorDetail {
                             code: 401,
-                            message: "Invalid Credentials".to_string(),
+                            message: "Invalid credentials".to_string(),
                             errors: vec![ErrorItem {
                                 domain: "global".to_string(),
                                 reason: "authError".to_string(),
