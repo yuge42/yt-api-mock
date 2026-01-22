@@ -1841,9 +1841,8 @@ step('Send StreamList request with invalid API key metadata', async function () 
 
   const streamData = setupStreamWithListeners(() => client.streamList(request, metadata));
   const result = await awaitStreamCompletion(streamData, 3000);
-  
-  // Store result for verification
-  gauge.dataStore.scenarioStore.put('streamResult', result);
+  gauge.dataStore.scenarioStore.put('receivedMessages', result.messages);
+  gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
 
 // Send StreamList request with invalid authorization metadata
@@ -1858,7 +1857,6 @@ step('Send StreamList request with invalid authorization metadata', async functi
 
   const streamData = setupStreamWithListeners(() => client.streamList(request, metadata));
   const result = await awaitStreamCompletion(streamData, 3000);
-  
-  // Store result for verification
-  gauge.dataStore.scenarioStore.put('streamResult', result);
+  gauge.dataStore.scenarioStore.put('receivedMessages', result.messages);
+  gauge.dataStore.scenarioStore.put('streamError', result.error);
 });
