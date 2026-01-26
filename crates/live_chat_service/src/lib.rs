@@ -52,9 +52,21 @@ impl V3DataLiveChatMessageService for LiveChatService {
             // 1. 'x-goog-api-key' metadata (API key)
             // 2. 'authorization' metadata (OAuth 2.0)
             let metadata = request.metadata();
-            let has_api_key = metadata.get("x-goog-api-key").is_some();
+            let api_key_metadata = metadata.get("x-goog-api-key");
+            let has_api_key = api_key_metadata.is_some();
             let auth_metadata = metadata.get("authorization");
             let has_auth = auth_metadata.is_some();
+
+            // Check if the API key starts with "invalid"
+            if let Some(key_value) = api_key_metadata {
+                if let Ok(key_str) = key_value.to_str() {
+                    if key_str.starts_with("invalid") {
+                        return Err(Status::unauthenticated(
+                            "Invalid API key. Please pass a valid API key.",
+                        ));
+                    }
+                }
+            }
 
             if !has_api_key && !has_auth {
                 return Err(Status::unauthenticated(
@@ -71,6 +83,11 @@ impl V3DataLiveChatMessageService for LiveChatService {
                         .strip_prefix("Bearer ")
                         .or_else(|| auth_str.strip_prefix("bearer "))
                     {
+                        // Check if token starts with "invalid"
+                        if token.starts_with("invalid") {
+                            return Err(Status::unauthenticated("Invalid token"));
+                        }
+
                         // Validate token expiry
                         if let Err(err_msg) = oauth_service::validate_token(token) {
                             return Err(Status::unauthenticated(format!(
