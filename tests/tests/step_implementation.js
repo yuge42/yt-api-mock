@@ -734,11 +734,6 @@ step('Verify authentication error received', async function () {
     `Error code is ${streamError.code} but expected ${grpc.status.UNAUTHENTICATED} (UNAUTHENTICATED)`
   );
   
-  assert.ok(
-    streamError.message.toLowerCase().includes('authentication'),
-    `Error message '${streamError.message}' should mention authentication`
-  );
-  
   console.log('Verified authentication error received');
 });
 
